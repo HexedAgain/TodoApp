@@ -64,6 +64,8 @@ dependencies {
     implementation(libs.datastore)
     implementation(libs.kotlinx.serialization.protobuf)
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.mockk)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

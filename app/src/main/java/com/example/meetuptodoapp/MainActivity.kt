@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -44,83 +43,8 @@ class MainActivity: ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MeetupTODOAppTheme {
-                val todos by syncTodos().collectAsState()
-                Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                    floatingActionButton = { TodoFAB(todos.todos.size) }
-                ) { innerPadding ->
-                    AllTodos(todos = todos, modifier = Modifier.padding(innerPadding))
-                }
+                AllTodos()
             }
         }
-    }
-}
-
-@Composable
-fun AllTodos(todos: Todos, modifier: Modifier) {
-    LazyColumn(
-        modifier = modifier
-    ) {
-        items(todos.todos.size) { idx ->
-            TodoItem(todos.todos[idx])
-        }
-    }
-}
-
-@Composable
-fun Context.TodoFAB(currTodoCount: Int) {
-    FloatingActionButton(
-        // this needs to launch a new activity where we can write the todoItem it's gonna make an intent
-        onClick = {
-            runBlocking {
-                todoDatastore.updateData { t -> t.copy(t.todos + TodoItem("some-title $currTodoCount")) }
-            }
-        }
-    ) {
-        Icon(painter = painterResource(R.drawable.ic_launcher_background), contentDescription = null)
-    }
-}
-
-@Composable
-private fun Context.syncTodos(): StateFlow<Todos> {
-    val todoFlow: MutableStateFlow<Todos> = MutableStateFlow(Todos(listOf()))
-    LaunchedEffect(null) {
-        // gonna require robolectric already to be able to get a context
-        todoDatastore.data.collect { latestTodos ->
-            todoFlow.value = latestTodos
-        }
-    }
-    return todoFlow.asStateFlow()
-}
-
-
-@Composable
-fun TodoItem(item: TodoItem) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp, horizontal = 16.dp)
-            .background(shape = RectangleShape, color = Color.Gray)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(item.title)
-            Text(text = "some description", modifier = Modifier)
-        }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    MeetupTODOAppTheme {
-        AllTodos(Todos(listOf()), Modifier)
     }
 }

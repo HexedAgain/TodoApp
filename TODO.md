@@ -20,6 +20,7 @@ each item will have
 - a completion percentage (if dependent on other todos)
 - a priority (on UI the todos will be draggable)
 - some way to show a colour as the todo approaches finish time (i.e. green when todo just started, red for needs completing)
+- some way to mark the todo as done
 
 - domain / data:
 - todo items will be saved locally to disk (no need for a database)
