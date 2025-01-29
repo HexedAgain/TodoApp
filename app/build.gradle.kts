@@ -49,6 +49,12 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+    testOptions {
+        unitTests {
+            isReturnDefaultValues  = true
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 dependencies {
@@ -64,8 +70,11 @@ dependencies {
     implementation(libs.datastore)
     implementation(libs.kotlinx.serialization.protobuf)
     testImplementation(libs.junit)
+    testImplementation(libs.androidx.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.mockk)
+    testImplementation(libs.androidx.ui.test.junit4)
+    testImplementation(libs.androidx.ui.test.manifest)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
