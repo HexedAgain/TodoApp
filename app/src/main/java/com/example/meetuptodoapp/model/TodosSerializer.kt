@@ -14,15 +14,25 @@ object TodosSerializer: Serializer<Todos> {
 
     @OptIn(ExperimentalSerializationApi::class)
     override suspend fun readFrom(input: InputStream): Todos {
-        //return ProtoBuf { }.decodeFromByteArray(Todos.serializer(), input.readBytes())
         return Json.decodeFromStream(input)
     }
 
     @OptIn(ExperimentalSerializationApi::class)
     override suspend fun writeTo(t: Todos, output: OutputStream) {
         Json.encodeToStream(t, output)
-//        ProtoBuf { }.encodeToByteArray(Todos.serializer(), t).apply {
-//            output.write(this)
-//        }
     }
+
+//    @OptIn(ExperimentalSerializationApi::class)
+//    override suspend fun readFrom(input: InputStream): Todos {
+//        //return ProtoBuf { }.decodeFromByteArray(Todos.serializer(), input.readBytes())
+//        return Json.decodeFromStream(input)
+//    }
+//
+//    @OptIn(ExperimentalSerializationApi::class)
+//    override suspend fun writeTo(t: Todos, output: OutputStream) {
+//        Json.encodeToStream(t, output)
+////        ProtoBuf { }.encodeToByteArray(Todos.serializer(), t).apply {
+////            output.write(this)
+////        }
+//    }
 }

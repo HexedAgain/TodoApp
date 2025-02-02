@@ -1,12 +1,20 @@
 package com.example.meetuptodoapp
 
 import android.content.Context
+import androidx.activity.compose.setContent
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.datastore.core.DataStore
+import com.example.meetuptodoapp.model.TodoItem
 import com.example.meetuptodoapp.model.Todos
 import com.example.meetuptodoapp.model.todoDatastore
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Rule
@@ -20,23 +28,36 @@ import org.robolectric.annotation.Config
 @Config(sdk = [34])
 class AllTodosTest {
     @get:Rule
-    val rule = createComposeRule()
+    val rule = createAndroidComposeRule<MainActivity>()
 
     private lateinit var context: Context
     private lateinit var datastore: DataStore<Todos>
 
     @Before
-    fun setup() {
+    fun setup() = runTest {
         context = RuntimeEnvironment.getApplication()
         datastore = context.todoDatastore
+        datastore.updateData { Todos(todos = listOf(TodoItem("some-title"))) }
+        val mutStateFlow = MutableStateFlow(Todos(listOf()))
+        val stateFlow: MutableStateFlow<Todos> = mutStateFlow
+        val activity = rule.activity
+        val field = MainActivity::class.java.getDeclaredField("todoFlow")
+        field.isAccessible = true
+        field.set(activity, stateFlow)
     }
 
     @Test
     fun `it fetches todos from disk and displays them on screen`() = runTest {
-        datastore.updateData { Todos(todos = listOf(com.example.meetuptodoapp.model.TodoItem("some-title"))) }
-        rule.setContent {
-            AllTodos()
-        }
+        datastore.updateData { Todos(todos = listOf(TodoItem("some-title"))) }
+        val mutStateFlow = MutableStateFlow(Todos(listOf()))
+        val stateFlow: MutableStateFlow<Todos> = mutStateFlow
+        val activity = rule.activity
+        val field = MainActivity::class.java.getDeclaredField("todoFlow")
+        field.isAccessible = true
+        field.set(activity, stateFlow)
+        rule.activity.setContent { }
+//        rule.setContent {
+//        }
 
         rule.onNodeWithText("Testing Compose").assertIsDisplayed()
     }
