@@ -6,4 +6,9 @@ import kotlinx.serialization.Serializable
 data class Todos(
     val todos: List<TodoItem>
 ) {
+    companion object {
+        fun default(): Todos {
+            return Todos(todos = listOf())
+        }
+    }
 }
