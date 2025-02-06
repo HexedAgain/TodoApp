@@ -11,10 +11,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,22 +31,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.meetuptodoapp.model.TodoItem
-import com.example.meetuptodoapp.model.Todos
-import com.example.meetuptodoapp.model.UITodo
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import com.example.meetuptodoapp.domain.model.TodoItem
+import com.example.meetuptodoapp.ui.model.UITodo
+import com.example.meetuptodoapp.domain.service.ReminderService
+import com.example.meetuptodoapp.domain.work.TodosWorker
 import com.example.meetuptodoapp.ui.theme.MeetupTODOAppTheme
 import com.example.meetuptodoapp.utils.toUI
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
-import java.time.Instant
+import java.time.Duration
 
 class MainActivity: ComponentActivity() {
     // Things we would like to test (and be sure to make them outrageously large):
@@ -60,12 +60,9 @@ class MainActivity: ComponentActivity() {
     // a calendar to set a notification time. Doing this will send device token to some server,
     // in order to issue a push notification at that date
     //
-    private var todoFlow: Flow<Todos>? = null
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        todoFlow = (applicationContext as TodoApplication).todoDataStore.data
         setContent {
             MeetupTODOAppTheme {
                 Scaffold(
@@ -95,6 +92,18 @@ fun TodoScreen() {
         showDoneTodos = it
     }
     TodoList(todoList)
+    // Or use workmanager here
+    val context = LocalContext.current
+    WorkManager.getInstance(context).enqueueUniqueWork(
+        uniqueWorkName = "my work",
+        existingWorkPolicy = ExistingWorkPolicy.KEEP,
+        request = OneTimeWorkRequestBuilder<TodosWorker>()
+            .setInitialDelay(Duration.ofMillis(1000000))
+            .build()
+    )
+    ReminderService.setReminderTime("", 123L) {
+
+    }
 }
 
 @Composable

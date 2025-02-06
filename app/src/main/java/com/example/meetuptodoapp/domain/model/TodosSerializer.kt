@@ -1,4 +1,4 @@
-package com.example.meetuptodoapp.model
+package com.example.meetuptodoapp.domain.model
 
 import androidx.datastore.core.Serializer
 import kotlinx.serialization.ExperimentalSerializationApi

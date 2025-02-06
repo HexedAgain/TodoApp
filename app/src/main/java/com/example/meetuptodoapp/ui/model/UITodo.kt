@@ -1,4 +1,4 @@
-package com.example.meetuptodoapp.model
+package com.example.meetuptodoapp.ui.model
 
 data class UITodo (
     val title: String,

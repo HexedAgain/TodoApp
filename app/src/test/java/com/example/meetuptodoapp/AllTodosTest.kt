@@ -9,8 +9,8 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.datastore.core.DataStore
-import com.example.meetuptodoapp.model.TodoItem
-import com.example.meetuptodoapp.model.Todos
+import com.example.meetuptodoapp.domain.model.TodoItem
+import com.example.meetuptodoapp.domain.model.Todos
 import com.example.meetuptodoapp.model.todoDatastore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOn

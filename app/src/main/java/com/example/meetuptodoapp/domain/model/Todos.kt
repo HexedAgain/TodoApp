@@ -1,4 +1,4 @@
-package com.example.meetuptodoapp.model
+package com.example.meetuptodoapp.domain.model
 
 import kotlinx.serialization.Serializable
 

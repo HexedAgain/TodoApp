@@ -1,8 +1,7 @@
 package com.example.meetuptodoapp.utils
 
-import android.os.SystemClock
-import com.example.meetuptodoapp.model.Todos
-import com.example.meetuptodoapp.model.UITodo
+import com.example.meetuptodoapp.domain.model.Todos
+import com.example.meetuptodoapp.ui.model.UITodo
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
