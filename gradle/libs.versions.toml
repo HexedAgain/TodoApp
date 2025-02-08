@@ -1,6 +1,6 @@
 [versions]
 agp = "8.6.0"
-firebaseMessaging = "24.1.0"
+#firebaseMessaging = "24.1.0"
 kotlin = "2.1.0"
 coreKtx = "1.15.0"
 junit = "4.13.2"
@@ -10,7 +10,7 @@ kotlinxSerializationProtobuf = "1.8.0"
 kotlinxSerializationJson = "1.8.0"
 lifecycleRuntimeKtx = "2.8.7"
 activityCompose = "1.10.0"
-composeBom = "2024.04.01"
+composeBom = "2025.01.01"
 #datastore = "1.1.2"
 datastore = "1.0.0"
 mockk = "1.13.6"
@@ -30,7 +30,7 @@ androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-toolin
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-work-runtime = { module = "androidx.work:work-runtime", version.ref = "workRuntime" }
 datastore = { group = "androidx.datastore", name = "datastore", version.ref = "datastore" }
-firebase-messaging = { module = "com.google.firebase:firebase-messaging", version.ref = "firebaseMessaging" }
+#firebase-messaging = { module = "com.google.firebase:firebase-messaging", version.ref = "firebaseMessaging" }
 kotlinx-serialization-protobuf = { module = "org.jetbrains.kotlinx:kotlinx-serialization-protobuf", version.ref = "kotlinxSerializationProtobuf" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 

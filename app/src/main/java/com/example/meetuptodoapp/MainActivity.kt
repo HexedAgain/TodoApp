@@ -17,21 +17,28 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -39,15 +46,12 @@ import androidx.compose.ui.unit.sp
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
-import com.example.meetuptodoapp.domain.model.TodoItem
 import com.example.meetuptodoapp.ui.model.UITodo
-import com.example.meetuptodoapp.domain.service.ReminderService
 import com.example.meetuptodoapp.domain.work.TodosWorker
 import com.example.meetuptodoapp.ui.theme.MeetupTODOAppTheme
 import com.example.meetuptodoapp.utils.toUI
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.runBlocking
 import java.time.Duration
 
 class MainActivity: ComponentActivity() {
@@ -60,19 +64,51 @@ class MainActivity: ComponentActivity() {
     // a calendar to set a notification time. Doing this will send device token to some server,
     // in order to issue a push notification at that date
     //
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
+            val showAddTodo = remember { mutableStateOf(false) }
             MeetupTODOAppTheme {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
-                    floatingActionButton = { TodoFAB() }
+                    floatingActionButton = {
+                        TodoFAB {
+                            showAddTodo.value = true
+                        }
+                    }
                 ) { innerPadding ->
+//                    var openBottomSheet by rememberSaveable { mutableStateOf(false) }
+//                    var skipPartiallyExpanded by rememberSaveable { mutableStateOf(false) }
+                    val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
                     Column(modifier = Modifier.padding(innerPadding)) {
+                        // this should be navigation
+                        if (showAddTodo.value) {
+                            LaunchedEffect(null) {
+                                bottomSheetState.expand()
+                            }
+                        }
                         TodoScreen()
+                        if (showAddTodo.value) {
+                            ModalBottomSheet(
+                                sheetState = bottomSheetState,
+                                onDismissRequest = { showAddTodo.value = false }
+                            ) {
+                                AddTodoScreen {
+                                    showAddTodo.value = false
+                                }
+                            }
+                        }
                     }
                 }
+//                Scaffold(
+//                    modifier = Modifier.fillMaxSize()
+//                ) { innerPadding ->
+//                    Column(modifier = Modifier.padding(innerPadding).padding(16.dp)) {
+//                        AddTodoScreen()
+//                    }
+//                }
             }
         }
     }
@@ -101,9 +137,9 @@ fun TodoScreen() {
             .setInitialDelay(Duration.ofMillis(1000000))
             .build()
     )
-    ReminderService.setReminderTime("", 123L) {
-
-    }
+//    ReminderService.setReminderTime("", 123L) {
+//
+//    }
 }
 
 @Composable
@@ -134,6 +170,8 @@ private fun Header(currChecked: Boolean, onChecked: (Boolean) -> Unit) {
 
 @Composable
 private fun TodoList(todos: List<UITodo>) {
+    val f = LocalFocusManager.current
+    val r = FocusRequester()
     LazyColumn {
         items(count = todos.size) { idx ->
             val item = todos[idx]
@@ -179,16 +217,17 @@ private fun TodoList(todos: List<UITodo>) {
 }
 
 @Composable
-private fun TodoFAB() {
+private fun TodoFAB(onClick: () -> Unit) {
     val context = LocalContext.current
     FloatingActionButton(
         // this needs to launch a new activity where we can write the todoItem it's gonna make an intent
         onClick = {
-            runBlocking {
-                (context.applicationContext as TodoApplication).todoDataStore.updateData { todos ->
-                    todos.copy(todos = todos.todos + TodoItem.default())
-                }
-            }
+            onClick()
+//            runBlocking {
+//                (context.applicationContext as TodoApplication).todoDataStore.updateData { todos ->
+//                    todos.copy(todos = todos.todos + TodoItem.default())
+//                }
+//            }
         },
         shape = CircleShape,
         modifier = Modifier.size(72.dp)

@@ -70,7 +70,7 @@ dependencies {
     implementation(libs.datastore)
     implementation(libs.kotlinx.serialization.protobuf)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.firebase.messaging)
+//    implementation(libs.firebase.messaging)
     implementation(libs.androidx.work.runtime)
     testImplementation(libs.junit)
     testImplementation(libs.androidx.junit)
