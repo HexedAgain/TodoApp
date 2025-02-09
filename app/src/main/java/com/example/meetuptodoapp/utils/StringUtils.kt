@@ -27,7 +27,7 @@ fun formatDate(timestamp: Long, isVerbose: Boolean = true): String {
         .format(DateTimeFormatter.ofPattern(format))
 }
 
-fun formatTime(timestamp: Long, hours: Int, mins: Int): String {
+fun formatTime(timestamp: Long): String {
     // TODO maybe mix these up
     val time = Instant
         .ofEpochMilli(timestamp)

@@ -33,7 +33,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TimePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -57,6 +56,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import java.time.Instant
 import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.util.Locale
 
 @Composable
@@ -98,24 +98,6 @@ fun AddTodoScreen(
     }
 }
 
-fun getHoursMinsFromTimestamp(timestamp: Long): Pair<Int, Int> {
-    if (timestamp == -1L) return Pair(0, 0)
-    val actualTime = Instant.ofEpochMilli(timestamp)
-
-    return with (actualTime.atZone(ZoneId.of("GMT"))) {
-        Pair(hour, minute)
-    }
-}
-
-fun addHoursMinsToDate(timestamp: Long, hours: Int, mins: Int): Long {
-    if (timestamp == -1L) return timestamp
-    val actualTime = Instant.ofEpochMilli(timestamp).atZone(ZoneId.of("GMT"))
-        .plusHours(hours.toLong())
-        .plusMinutes(mins.toLong())
-
-    return actualTime.toInstant().toEpochMilli()
-}
-
 @Composable
 fun EditTodo(
     initialTitle: String = "",
@@ -127,14 +109,10 @@ fun EditTodo(
     val description = remember { mutableStateOf(initialDescription)}
     val title = remember { mutableStateOf(initialTitle)}
     val timestamp = remember { mutableLongStateOf(initialTimestamp) }
-    val hoursMins = remember { getHoursMinsFromTimestamp(timestamp.longValue) }
-    var hours by remember { mutableStateOf(hoursMins.first) }
-    var mins by remember { mutableStateOf(hoursMins.second) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var isDone by remember { mutableStateOf(false) }
     if (isDone) {
-        //onDone(title.value, description.value, addHoursMinsToDate(timestamp.longValue, hours, mins))
         onDone(title.value, description.value, timestamp.longValue)
     }
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -148,7 +126,7 @@ fun EditTodo(
             ToBeDoneByDate(timestamp.longValue) {
                 showDatePicker = true
             }
-            ToBeDoneByTime(timestamp.longValue, hours, mins) {
+            ToBeDoneByTime(timestamp.longValue) {
                 showTimePicker = true
             }
         }
@@ -167,21 +145,20 @@ fun EditTodo(
     }
     if (showTimePicker) {
         Clock(timestamp.longValue) { newHours, newMins ->
-            val (oldHours, oldMins) = getHoursMinsFromTimestamp(timestamp.longValue)
-            val newTimestamp = Instant.ofEpochMilli(timestamp.longValue)
-                .atZone(ZoneId.of("GMT"))
+            val currTime = currTime(timestamp.longValue)
+            val (oldHours, oldMins) = Pair(currTime.hour, currTime.minute)
+            timestamp.longValue = currTime
                 .plusHours((newHours - oldHours).toLong())
                 .plusMinutes((newMins - oldMins).toLong())
                 .toInstant()
                 .toEpochMilli()
-            timestamp.longValue = newTimestamp
             showTimePicker = false
         }
     }
 }
 
-fun newTimestamp(timestamp: Long, hours: Int, mins: Int): Long {
-    return timestamp
+fun currTime(timestamp: Long): ZonedDateTime {
+    return Instant.ofEpochMilli(timestamp).atZone(ZoneId.of("GMT"))
 }
 
 @Composable
@@ -306,7 +283,7 @@ fun ToBeDoneByDate(date: Long, onSelected: () -> Unit) {
 }
 
 @Composable
-fun ToBeDoneByTime(timestamp: Long, hours: Int = -1, mins: Int = -1, onSelected: () -> Unit) {
+fun ToBeDoneByTime(timestamp: Long, onSelected: () -> Unit) {
     val interactionScope = remember {
         getInteractionSource { onSelected() }
     }
@@ -314,8 +291,7 @@ fun ToBeDoneByTime(timestamp: Long, hours: Int = -1, mins: Int = -1, onSelected:
         OutlinedTextField(
             label = { Text(text = "At Time") },
             enabled = timestamp > -1,
-            //value = if (hours > -1 && mins > -1 && timestamp > -1) formatTime(timestamp = timestamp, hours, mins) else "",
-            value = formatTime(timestamp = timestamp, hours, mins),
+            value = formatTime(timestamp = timestamp),
             onValueChange = {},
             readOnly = true,
             trailingIcon = {
@@ -331,35 +307,10 @@ fun ToBeDoneByTime(timestamp: Long, hours: Int = -1, mins: Int = -1, onSelected:
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Clock(hours: Int, mins: Int, onClose: (Int, Int) -> Unit) {
-//    Column(
-//        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = .25f)),
-//        horizontalAlignment = Alignment.CenterHorizontally,
-//        verticalArrangement = Arrangement.Center
-//    ) {
-//        TimePicker(timePickerState)
-//    }
-    // Might have a timestamp that already has hours / minutes in it
-    val timePickerState = TimePickerState(hours, mins, true)
-    BasicAlertDialog(onDismissRequest = {
-        onClose(timePickerState.hour, timePickerState.minute)
-    }) {
-        TimePicker(timePickerState)
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
 fun Clock(timestamp: Long, onClose: (Int, Int) -> Unit) {
-//    Column(
-//        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = .25f)),
-//        horizontalAlignment = Alignment.CenterHorizontally,
-//        verticalArrangement = Arrangement.Center
-//    ) {
-//        TimePicker(timePickerState)
-//    }
-    // Might have a timestamp that already has hours / minutes in it
-    val (hours, mins) = getHoursMinsFromTimestamp(timestamp)
+    val (hours, mins) = with (Instant.ofEpochMilli(timestamp).atZone(ZoneId.of("GMT"))) {
+        Pair(hour, minute)
+    }
     val timePickerState = TimePickerState(hours, mins, true)
     BasicAlertDialog(onDismissRequest = {
         onClose(timePickerState.hour, timePickerState.minute)
@@ -374,6 +325,7 @@ fun Calendar(initialTimestamp: Long, onClose: (Long?) -> Unit) {
     val datePickerState = DatePickerState(locale = Locale.UK).apply {
         selectedDateMillis = initialTimestamp.takeIf { it > -1 } ?: Instant.now().toEpochMilli()
     }
+    val currTime = currTime(initialTimestamp)
     Column(
         modifier = Modifier
             .fillMaxHeight()
@@ -383,7 +335,8 @@ fun Calendar(initialTimestamp: Long, onClose: (Long?) -> Unit) {
         DatePickerDialog(
             confirmButton = {},
             onDismissRequest = {
-                onClose(datePickerState.selectedDateMillis)
+                val hoursMinsOffset = (currTime.hour * 3600 + currTime.minute * 60) * 1000
+                onClose(datePickerState.selectedDateMillis?.plus(hoursMinsOffset.toLong()))
             }
         ) {
             DatePicker(
