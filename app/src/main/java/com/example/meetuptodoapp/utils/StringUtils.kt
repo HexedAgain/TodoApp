@@ -19,7 +19,7 @@ fun Todos.toUI(): List<UITodo> {
 }
 
 fun formatDate(timestamp: Long, isVerbose: Boolean = true): String {
-    val format = if (isVerbose) "EE, dd MMMM yyyy HH:mm:ss" else "EE, dd/MM/yyyy"
+    val format = if (isVerbose) "EE, dd MMMM yyyy HH:mm" else "EE, dd/MM/yyyy"
     return Instant
         .ofEpochMilli(timestamp)
         .atZone(ZoneId.of("GMT"))
@@ -29,11 +29,11 @@ fun formatDate(timestamp: Long, isVerbose: Boolean = true): String {
 
 fun formatTime(timestamp: Long): String {
     // TODO maybe mix these up
+    val format = "HH:mm"
     val time = Instant
         .ofEpochMilli(timestamp)
         .atZone(ZoneId.of("GMT"))
-//        .plusHours(hours.toLong())
-//        .plusMinutes(mins.toLong())
         .toLocalTime()
-    return "${time.hour}:${time.minute}"
+        .format(DateTimeFormatter.ofPattern(format))
+    return time
 }

@@ -4,7 +4,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.Interaction
-import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
@@ -14,7 +13,6 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -187,6 +185,7 @@ fun ViewTodo(
     Column(modifier = Modifier.fillMaxWidth().fillMaxHeight()) {
         TextBox("Title", todo.title)
         TextBox("Description", todo.description)
+        TextBox("To Complete By", formatDate(todo.completionTime))
         Box(
             modifier = Modifier.fillMaxWidth().height(60.dp),
             contentAlignment = Alignment.BottomEnd
@@ -260,14 +259,14 @@ fun ColumnScope.TodoDescription(description: String, onUpdateDescription: (Strin
 }
 
 @Composable
-fun ToBeDoneByDate(date: Long, onSelected: () -> Unit) {
+fun ToBeDoneByDate(timestamp: Long, onSelected: () -> Unit) {
     val interactionScope = remember {
         getInteractionSource { onSelected() }
     }
     Row {
         OutlinedTextField(
             label = { Text(text = "To Be Done By") },
-            value = if (date > -1) formatDate(date, isVerbose = false) else "",
+            value = if (timestamp > -1) formatDate(timestamp, isVerbose = false) else "",
             onValueChange = {},
             readOnly = true,
             trailingIcon = {

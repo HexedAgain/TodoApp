@@ -47,6 +47,21 @@ class AllTodosTest {
     }
 
     @Test
+    fun testOnScreenLoadShowTodos() {
+
+    }
+    @Test
+    fun testShowUpdatedTodo() {
+        // this one is gonna show that for some initial todos, when they get updated then the new todos
+        // respect the update
+    }
+    @Test
+    fun testAddNewTodo() {
+        // this one is gonna show that for some initial todos, if the fab is selected and a todo
+        // selected then the screen shows the new todo
+    }
+
+    @Test
     fun `it fetches todos from disk and displays them on screen`() = runTest {
         datastore.updateData { Todos(todos = listOf(TodoItem("some-title"))) }
         val mutStateFlow = MutableStateFlow(Todos(listOf()))
