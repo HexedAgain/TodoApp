@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.Interaction
+import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
@@ -13,11 +14,13 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -27,6 +30,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,11 +50,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.meetuptodoapp.domain.model.TodoItem
 import com.example.meetuptodoapp.utils.formatDate
+import com.example.meetuptodoapp.utils.formatTime
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import java.time.Instant
+import java.time.ZoneId
 import java.util.Locale
 
 @Composable
@@ -91,6 +98,24 @@ fun AddTodoScreen(
     }
 }
 
+fun getHoursMinsFromTimestamp(timestamp: Long): Pair<Int, Int> {
+    if (timestamp == -1L) return Pair(0, 0)
+    val actualTime = Instant.ofEpochMilli(timestamp)
+
+    return with (actualTime.atZone(ZoneId.of("GMT"))) {
+        Pair(hour, minute)
+    }
+}
+
+fun addHoursMinsToDate(timestamp: Long, hours: Int, mins: Int): Long {
+    if (timestamp == -1L) return timestamp
+    val actualTime = Instant.ofEpochMilli(timestamp).atZone(ZoneId.of("GMT"))
+        .plusHours(hours.toLong())
+        .plusMinutes(mins.toLong())
+
+    return actualTime.toInstant().toEpochMilli()
+}
+
 @Composable
 fun EditTodo(
     initialTitle: String = "",
@@ -102,9 +127,14 @@ fun EditTodo(
     val description = remember { mutableStateOf(initialDescription)}
     val title = remember { mutableStateOf(initialTitle)}
     val timestamp = remember { mutableLongStateOf(initialTimestamp) }
+    val hoursMins = remember { getHoursMinsFromTimestamp(timestamp.longValue) }
+    var hours by remember { mutableStateOf(hoursMins.first) }
+    var mins by remember { mutableStateOf(hoursMins.second) }
     var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
     var isDone by remember { mutableStateOf(false) }
     if (isDone) {
+        //onDone(title.value, description.value, addHoursMinsToDate(timestamp.longValue, hours, mins))
         onDone(title.value, description.value, timestamp.longValue)
     }
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -114,8 +144,13 @@ fun EditTodo(
         TodoDescription(description.value) {
             description.value = it
         }
-        ToBeDoneBy(timestamp.longValue) {
-            showDatePicker = true
+        Row {
+            ToBeDoneByDate(timestamp.longValue) {
+                showDatePicker = true
+            }
+            ToBeDoneByTime(timestamp.longValue, hours, mins) {
+                showTimePicker = true
+            }
         }
         CTAButton(title.value, description.value, timestamp.longValue, initialTitle == "") {
             isDone = true
@@ -130,6 +165,23 @@ fun EditTodo(
             showDatePicker = false
         }
     }
+    if (showTimePicker) {
+        Clock(timestamp.longValue) { newHours, newMins ->
+            val (oldHours, oldMins) = getHoursMinsFromTimestamp(timestamp.longValue)
+            val newTimestamp = Instant.ofEpochMilli(timestamp.longValue)
+                .atZone(ZoneId.of("GMT"))
+                .plusHours((newHours - oldHours).toLong())
+                .plusMinutes((newMins - oldMins).toLong())
+                .toInstant()
+                .toEpochMilli()
+            timestamp.longValue = newTimestamp
+            showTimePicker = false
+        }
+    }
+}
+
+fun newTimestamp(timestamp: Long, hours: Int, mins: Int): Long {
+    return timestamp
 }
 
 @Composable
@@ -231,39 +283,89 @@ fun ColumnScope.TodoDescription(description: String, onUpdateDescription: (Strin
 }
 
 @Composable
-fun ToBeDoneBy(date: Long, onSelected: () -> Unit) {
+fun ToBeDoneByDate(date: Long, onSelected: () -> Unit) {
     val interactionScope = remember {
-        object: MutableInteractionSource {
-            override val interactions = MutableSharedFlow<Interaction>(
-                extraBufferCapacity = 16,
-                onBufferOverflow = BufferOverflow.DROP_OLDEST
-            )
-
-            override suspend fun emit(interaction: Interaction) {
-                if (interaction is PressInteraction.Press) {
-                    onSelected()
-                }
-            }
-
-            override fun tryEmit(interaction: Interaction): Boolean {
-                return interactions.tryEmit(interaction)
-            }
-
-        }
+        getInteractionSource { onSelected() }
     }
-    OutlinedTextField(
-        label = { Text(text = "To Be Done By") },
-        value = if (date > -1) formatDate(date, includeHoursMinsSeconds = false) else "",
-        onValueChange = {},
-        readOnly = true,
-        trailingIcon = {
-            Icon(
-                painter = painterResource(R.drawable.baseline_calendar_month_24),
-                contentDescription = null
-            )
-        },
-        interactionSource = interactionScope
-    )
+    Row {
+        OutlinedTextField(
+            label = { Text(text = "To Be Done By") },
+            value = if (date > -1) formatDate(date, isVerbose = false) else "",
+            onValueChange = {},
+            readOnly = true,
+            trailingIcon = {
+                Icon(
+                    painter = painterResource(R.drawable.baseline_calendar_month_24),
+                    contentDescription = null
+                )
+            },
+            modifier = Modifier.fillMaxWidth(.6f).padding(end = 8.dp),
+            interactionSource = interactionScope
+        )
+    }
+}
+
+@Composable
+fun ToBeDoneByTime(timestamp: Long, hours: Int = -1, mins: Int = -1, onSelected: () -> Unit) {
+    val interactionScope = remember {
+        getInteractionSource { onSelected() }
+    }
+    Row {
+        OutlinedTextField(
+            label = { Text(text = "At Time") },
+            enabled = timestamp > -1,
+            //value = if (hours > -1 && mins > -1 && timestamp > -1) formatTime(timestamp = timestamp, hours, mins) else "",
+            value = formatTime(timestamp = timestamp, hours, mins),
+            onValueChange = {},
+            readOnly = true,
+            trailingIcon = {
+                Icon(
+                    painter = painterResource(R.drawable.baseline_access_time_24),
+                    contentDescription = null
+                )
+            },
+            interactionSource = interactionScope
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun Clock(hours: Int, mins: Int, onClose: (Int, Int) -> Unit) {
+//    Column(
+//        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = .25f)),
+//        horizontalAlignment = Alignment.CenterHorizontally,
+//        verticalArrangement = Arrangement.Center
+//    ) {
+//        TimePicker(timePickerState)
+//    }
+    // Might have a timestamp that already has hours / minutes in it
+    val timePickerState = TimePickerState(hours, mins, true)
+    BasicAlertDialog(onDismissRequest = {
+        onClose(timePickerState.hour, timePickerState.minute)
+    }) {
+        TimePicker(timePickerState)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun Clock(timestamp: Long, onClose: (Int, Int) -> Unit) {
+//    Column(
+//        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = .25f)),
+//        horizontalAlignment = Alignment.CenterHorizontally,
+//        verticalArrangement = Arrangement.Center
+//    ) {
+//        TimePicker(timePickerState)
+//    }
+    // Might have a timestamp that already has hours / minutes in it
+    val (hours, mins) = getHoursMinsFromTimestamp(timestamp)
+    val timePickerState = TimePickerState(hours, mins, true)
+    BasicAlertDialog(onDismissRequest = {
+        onClose(timePickerState.hour, timePickerState.minute)
+    }) {
+        TimePicker(timePickerState)
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -271,10 +373,6 @@ fun ToBeDoneBy(date: Long, onSelected: () -> Unit) {
 fun Calendar(initialTimestamp: Long, onClose: (Long?) -> Unit) {
     val datePickerState = DatePickerState(locale = Locale.UK).apply {
         selectedDateMillis = initialTimestamp.takeIf { it > -1 } ?: Instant.now().toEpochMilli()
-    }
-    val enabled = remember { mutableStateOf(false) }
-    LaunchedEffect(null) {
-        enabled.value = true
     }
     Column(
         modifier = Modifier
@@ -285,7 +383,6 @@ fun Calendar(initialTimestamp: Long, onClose: (Long?) -> Unit) {
         DatePickerDialog(
             confirmButton = {},
             onDismissRequest = {
-                println(datePickerState)
                 onClose(datePickerState.selectedDateMillis)
             }
         ) {
@@ -294,5 +391,25 @@ fun Calendar(initialTimestamp: Long, onClose: (Long?) -> Unit) {
                 modifier = Modifier
             )
         }
+    }
+}
+
+fun getInteractionSource(onClick: () -> Unit): MutableInteractionSource {
+    return object: MutableInteractionSource {
+        override val interactions = MutableSharedFlow<Interaction>(
+            extraBufferCapacity = 16,
+            onBufferOverflow = BufferOverflow.DROP_OLDEST
+        )
+
+        override suspend fun emit(interaction: Interaction) {
+            if (interaction is PressInteraction.Press) {
+                onClick()
+            }
+        }
+
+        override fun tryEmit(interaction: Interaction): Boolean {
+            return interactions.tryEmit(interaction)
+        }
+
     }
 }

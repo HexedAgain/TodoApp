@@ -41,10 +41,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.core.DataStore
+import androidx.lifecycle.lifecycleScope
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -54,6 +57,7 @@ import com.example.meetuptodoapp.ui.model.UITodo
 import com.example.meetuptodoapp.domain.work.TodosWorker
 import com.example.meetuptodoapp.ui.theme.MeetupTODOAppTheme
 import com.example.meetuptodoapp.utils.toUI
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -117,12 +121,10 @@ fun ModalUpdateTodo(bottomSheetState: SheetState, todoIdx: Int?, onClose: () -> 
         AddTodoScreen(
             todoIdx = todoIdx,
             onUpdate = { title, description, completionDate, id ->
-                commitTodo(title, description, completionDate, id)
-                onClose()
+                commitTodo(title, description, completionDate, id) { onClose() }
             },
             onDelete = {
-                deleteTodo(it)
-                onClose()
+                deleteTodo(it) { onClose() }
             }
         )
     }
@@ -134,7 +136,7 @@ fun getTodoStore(): DataStore<Todos> {
 }
 
 @Composable
-fun deleteTodo(id: String) {
+fun deleteTodo(id: String, onFinish: () -> Unit) {
     val todoStore = getTodoStore()
     LaunchedEffect(null) {
         todoStore.updateData { todos ->
@@ -142,28 +144,25 @@ fun deleteTodo(id: String) {
                 todos = todos.todos.filter { it.id != id }
             )
         }
+        onFinish()
     }
 }
 
-@SuppressLint("CoroutineCreationDuringComposition")
 @Composable
-fun commitTodo(title: String, description: String, timestamp: Long, id: String?) {
+fun commitTodo(title: String, description: String, timestamp: Long, id: String?, onFinish: () -> Unit) {
     val todoStore = getTodoStore()
-    var scope = rememberCoroutineScope()
-    scope.launch {
+    LaunchedEffect(null) {
         if (id == null) {
             addTodo(todoStore, title, description, timestamp)
         } else {
             updateTodo(todoStore, title, description, timestamp, id)
         }
-    }.invokeOnCompletion {
-        Log.i("COMMIT", "coroutine finished")
+        onFinish()
     }
 }
 
 suspend fun addTodo(todoStore: DataStore<Todos>, title: String, description: String, timestamp: Long) {
-    Log.i("COMMIT", "adding todo")
-    val result = todoStore.updateData { todos ->
+    todoStore.updateData { todos ->
         Log.i("COMMIT", "will update data")
         todos.copy(
             todos = todos.todos +
@@ -175,7 +174,6 @@ suspend fun addTodo(todoStore: DataStore<Todos>, title: String, description: Str
                 )
         )
     }
-    Log.i("COMMIT", "result: ${result.todos}")
 }
 
 suspend fun updateTodo(todoStore: DataStore<Todos>, title: String, description: String, timestamp: Long, id: String) {
@@ -266,31 +264,29 @@ private fun TodoList(todos: List<UITodo>, onClick: (Int) -> Unit) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.padding(16.dp).fillMaxWidth(.8f)) {
-                        // TODO probably don't need to display the date here (might on edited page)
-                        Text(text = item.date)
-                        Text(item.title)
+                        Text(item.title, style = TextStyle().copy(fontWeight = FontWeight.Bold, fontSize = 16.sp))
                         Text(text = item.description, modifier = Modifier)
                     }
                     Column(
                         horizontalAlignment = Alignment.End,
                         modifier = Modifier.fillMaxWidth().padding(8.dp)
                     ) {
-                        IconButton(onClick = {}) {
-                            Icon(
-                                painter = painterResource(R.drawable.baseline_clear_24),
-                                modifier = Modifier.size(36.dp),
-                                contentDescription = null,
-                                tint = Color.Black,
-                            )
-                        }
-                        IconButton(onClick = {}) {
-                            Icon(
-                                painter = painterResource(R.drawable.baseline_edit_24),
-                                modifier = Modifier.size(36.dp),
-                                contentDescription = null,
-                                tint = Color.Black,
-                            )
-                        }
+//                        IconButton(onClick = {}) {
+//                            Icon(
+//                                painter = painterResource(R.drawable.baseline_clear_24),
+//                                modifier = Modifier.size(36.dp),
+//                                contentDescription = null,
+//                                tint = Color.Black,
+//                            )
+//                        }
+//                        IconButton(onClick = {}) {
+//                            Icon(
+//                                painter = painterResource(R.drawable.baseline_edit_24),
+//                                modifier = Modifier.size(36.dp),
+//                                contentDescription = null,
+//                                tint = Color.Black,
+//                            )
+//                        }
                     }
                 }
             }
