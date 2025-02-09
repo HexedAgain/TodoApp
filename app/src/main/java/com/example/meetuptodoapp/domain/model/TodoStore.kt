@@ -1,6 +1,7 @@
 package com.example.meetuptodoapp.domain.model
 
 import android.content.Context
+import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.DataStoreFactory
 import androidx.datastore.dataStore
@@ -23,6 +24,7 @@ class TodoStore(context: Context): DataStore<Todos> {
         get() = impl.data
 
     override suspend fun updateData(transform: suspend (t: Todos) -> Todos): Todos {
+        Log.i("COMMIT", "inside updateData")
         return impl.updateData { transform(it) }
     }
 }

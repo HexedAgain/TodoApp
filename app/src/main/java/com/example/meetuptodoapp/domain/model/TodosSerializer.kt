@@ -1,5 +1,6 @@
 package com.example.meetuptodoapp.domain.model
 
+import android.util.Log
 import androidx.datastore.core.Serializer
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.protobuf.ProtoBuf
@@ -19,6 +20,7 @@ object TodosSerializer: Serializer<Todos> {
 
     @OptIn(ExperimentalSerializationApi::class)
     override suspend fun writeTo(t: Todos, output: OutputStream) {
+        Log.i("COMMIT", "in writeTo")
         Json.encodeToStream(t, output)
     }
 

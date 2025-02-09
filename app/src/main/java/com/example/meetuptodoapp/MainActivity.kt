@@ -1,7 +1,8 @@
 package com.example.meetuptodoapp
 
-import android.content.Context
+import android.annotation.SuppressLint
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -25,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -32,6 +34,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,9 +54,9 @@ import com.example.meetuptodoapp.ui.model.UITodo
 import com.example.meetuptodoapp.domain.work.TodosWorker
 import com.example.meetuptodoapp.ui.theme.MeetupTODOAppTheme
 import com.example.meetuptodoapp.utils.toUI
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.Instant
 
@@ -74,48 +77,24 @@ class MainActivity: ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            val showAddTodo = remember { mutableStateOf(false) }
-            val editIdx = remember { mutableStateOf<Int?>(null) }
+            var showModal by remember { mutableStateOf(false) }
+            var editIdx by remember { mutableStateOf<Int?>(null) }
             MeetupTODOAppTheme {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
-                    floatingActionButton = {
-                        TodoFAB {
-                            showAddTodo.value = true
-                        }
-                    }
+                    floatingActionButton = { TodoFAB { showModal = true } }
                 ) { innerPadding ->
                     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
                     Column(modifier = Modifier.padding(innerPadding)) {
-                        if (showAddTodo.value) {
-                            LaunchedEffect(null) {
-                                bottomSheetState.expand()
-                            }
-                        }
                         TodoScreen {
-                            editIdx.value = it
-                            showAddTodo.value = true
+                            editIdx = it
+                            showModal = true
                         }
-                        if (showAddTodo.value) {
-                            ModalBottomSheet(
-                                sheetState = bottomSheetState,
-                                onDismissRequest = {
-                                    editIdx.value = null
-                                    showAddTodo.value = false
-                                }
-                            ) {
-                                AddTodoScreen(todoIdx = editIdx.value) { title, description, completionDate, id ->
-                                    val todoStore = getTodoStore()
-                                    LaunchedEffect(null) {
-                                        if (id == null) {
-                                            addTodo(todoStore, title, description, completionDate)
-                                        } else {
-                                            updateTodo(todoStore, title, description, completionDate, id)
-                                        }
-                                    }
-                                    showAddTodo.value = false
-                                    editIdx.value = null
-                                }
+
+                        if (showModal) {
+                            ModalUpdateTodo(bottomSheetState, editIdx) {
+                                editIdx = null
+                                showModal = false
                             }
                         }
                     }
@@ -125,13 +104,67 @@ class MainActivity: ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ModalUpdateTodo(bottomSheetState: SheetState, todoIdx: Int?, onClose: () -> Unit) {
+    LaunchedEffect(null) { bottomSheetState.expand() }
+    ModalBottomSheet(
+        sheetState = bottomSheetState,
+        onDismissRequest = {
+            onClose()
+        }
+    ) {
+        AddTodoScreen(
+            todoIdx = todoIdx,
+            onUpdate = { title, description, completionDate, id ->
+                commitTodo(title, description, completionDate, id)
+                onClose()
+            },
+            onDelete = {
+                deleteTodo(it)
+                onClose()
+            }
+        )
+    }
+}
+
 @Composable
 fun getTodoStore(): DataStore<Todos> {
     return (LocalContext.current.applicationContext as TodoApplication).todoDataStore
 }
 
+@Composable
+fun deleteTodo(id: String) {
+    val todoStore = getTodoStore()
+    LaunchedEffect(null) {
+        todoStore.updateData { todos ->
+            todos.copy(
+                todos = todos.todos.filter { it.id != id }
+            )
+        }
+    }
+}
+
+@SuppressLint("CoroutineCreationDuringComposition")
+@Composable
+fun commitTodo(title: String, description: String, timestamp: Long, id: String?) {
+    val todoStore = getTodoStore()
+    var scope = rememberCoroutineScope()
+    scope.launch {
+        if (id == null) {
+            addTodo(todoStore, title, description, timestamp)
+        } else {
+            updateTodo(todoStore, title, description, timestamp, id)
+        }
+    }.invokeOnCompletion {
+        Log.i("COMMIT", "coroutine finished")
+    }
+}
+
 suspend fun addTodo(todoStore: DataStore<Todos>, title: String, description: String, timestamp: Long) {
-    todoStore.updateData { todos ->
+    Log.i("COMMIT", "adding todo")
+    val result = todoStore.updateData { todos ->
+        Log.i("COMMIT", "will update data")
         todos.copy(
             todos = todos.todos +
                 TodoItem(
@@ -142,6 +175,7 @@ suspend fun addTodo(todoStore: DataStore<Todos>, title: String, description: Str
                 )
         )
     }
+    Log.i("COMMIT", "result: ${result.todos}")
 }
 
 suspend fun updateTodo(todoStore: DataStore<Todos>, title: String, description: String, timestamp: Long, id: String) {
@@ -266,17 +300,8 @@ private fun TodoList(todos: List<UITodo>, onClick: (Int) -> Unit) {
 
 @Composable
 private fun TodoFAB(onClick: () -> Unit) {
-    val context = LocalContext.current
     FloatingActionButton(
-        // this needs to launch a new activity where we can write the todoItem it's gonna make an intent
-        onClick = {
-            onClick()
-//            runBlocking {
-//                (context.applicationContext as TodoApplication).todoDataStore.updateData { todos ->
-//                    todos.copy(todos = todos.todos + TodoItem.default())
-//                }
-//            }
-        },
+        onClick = onClick,
         shape = CircleShape,
         modifier = Modifier.size(72.dp)
     ) {

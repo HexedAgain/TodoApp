@@ -3,7 +3,6 @@ package com.example.meetuptodoapp
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.Interaction
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
@@ -11,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -53,27 +53,40 @@ import java.time.Instant
 import java.util.Locale
 
 @Composable
-fun AddTodoScreen(todoIdx: Int?, onDone: @Composable (String, String, Long, String?) -> Unit) {
+fun AddTodoScreen(
+    todoIdx: Int?,
+    onUpdate: @Composable (String, String, Long, String?) -> Unit,
+    onDelete: @Composable (String) -> Unit
+) {
     var todo by remember { mutableStateOf<TodoItem?>(null) }
+    var deleteId by remember { mutableStateOf<String?>(null) }
+
     Box(
         modifier = Modifier.padding(16.dp),
     ) {
         when {
+            deleteId != null -> {
+                deleteId?.let {
+                    onDelete(it)
+                }
+            }
             todo != null -> {
                 todo?.let {
                     EditTodo(it.title, it.description, it.completionTime) { title, description, timestamp ->
-                        onDone(title, description, timestamp, it.id)
+                        onUpdate(title, description, timestamp, it.id)
                     }
                 }
             }
             todoIdx == null -> {
                 EditTodo { title, description, timestamp ->
-                    onDone(title, description, timestamp, null)
+                    onUpdate(title, description, timestamp, null)
                 }
             }
-            else -> ViewTodo(todoIdx) {
-                todo = it
-            }
+            else -> ViewTodo(
+                todoIdx = todoIdx,
+                onUpdate = { todo = it },
+                onDelete = { deleteId = it.id }
+            )
         }
     }
 }
@@ -135,7 +148,11 @@ fun CTAButton(title: String, description: String, timestamp: Long, isAdd: Boolea
 }
 
 @Composable
-fun ViewTodo(todoIdx: Int, onUpdate: (TodoItem) -> Unit) {
+fun ViewTodo(
+    todoIdx: Int,
+    onUpdate: (TodoItem) -> Unit,
+    onDelete: (TodoItem) -> Unit
+) {
     val todoFlow = (LocalContext.current.applicationContext as TodoApplication).todoDataStore.data
     val todo = runBlocking { todoFlow.first().todos[todoIdx] }
     Column(modifier = Modifier.fillMaxWidth().fillMaxHeight()) {
@@ -145,14 +162,25 @@ fun ViewTodo(todoIdx: Int, onUpdate: (TodoItem) -> Unit) {
             modifier = Modifier.fillMaxWidth().height(60.dp),
             contentAlignment = Alignment.BottomEnd
         ) {
-            IconButton(onClick = {
-                onUpdate(todo)
-            }) {
-                Icon(
-                    painter = painterResource(R.drawable.baseline_edit_24),
-                    contentDescription = null,
-                    tint = Color.Black,
-                )
+            Row {
+                IconButton(onClick = {
+                    onDelete(todo)
+                }) {
+                    Icon(
+                        painter = painterResource(R.drawable.baseline_delete_24),
+                        contentDescription = null,
+                        tint = Color.Black,
+                    )
+                }
+                IconButton(onClick = {
+                    onUpdate(todo)
+                }) {
+                    Icon(
+                        painter = painterResource(R.drawable.baseline_edit_24),
+                        contentDescription = null,
+                        tint = Color.Black,
+                    )
+                }
             }
         }
     }
@@ -223,10 +251,9 @@ fun ToBeDoneBy(date: Long, onSelected: () -> Unit) {
 
         }
     }
-    val initialDate = date.takeIf { it > -1 } ?: Instant.now().toEpochMilli()
     OutlinedTextField(
         label = { Text(text = "To Be Done By") },
-        value = formatDate(initialDate, includeHoursMinsSeconds = false),
+        value = if (date > -1) formatDate(date, includeHoursMinsSeconds = false) else "",
         onValueChange = {},
         readOnly = true,
         trailingIcon = {
