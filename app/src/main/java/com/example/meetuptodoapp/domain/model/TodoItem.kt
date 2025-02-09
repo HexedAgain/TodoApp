@@ -7,9 +7,9 @@ import kotlin.uuid.Uuid
 
 @Serializable
 data class TodoItem(
-    val id: String? = UUID.randomUUID().toString(), // how can we reliably set this at construction time?
-    val title: String? = null,
-    val description: String? = null,
+    val id: String = UUID.randomUUID().toString(), // how can we reliably set this at construction time?
+    val title: String = "",
+    val description: String = "",
     val timestamp: Long = 0L,
     val completionTime: Long = Long.MAX_VALUE
 ) {
