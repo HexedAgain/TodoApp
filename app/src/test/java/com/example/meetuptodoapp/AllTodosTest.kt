@@ -59,7 +59,7 @@ class AllTodosTest {
     fun testAddNewTodo() {
         // this one is gonna show that for some initial todos, if the fab is selected and a todo
         // selected then the screen shows the new todo
-    }
+    }q
 
     @Test
     fun `it fetches todos from disk and displays them on screen`() = runTest {

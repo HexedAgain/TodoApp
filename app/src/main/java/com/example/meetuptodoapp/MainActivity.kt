@@ -1,6 +1,5 @@
 package com.example.meetuptodoapp
 
-import android.annotation.SuppressLint
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -23,7 +22,6 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetState
@@ -47,7 +45,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.core.DataStore
-import androidx.lifecycle.lifecycleScope
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -57,10 +54,9 @@ import com.example.meetuptodoapp.ui.model.UITodo
 import com.example.meetuptodoapp.domain.work.TodosWorker
 import com.example.meetuptodoapp.ui.theme.MeetupTODOAppTheme
 import com.example.meetuptodoapp.utils.toUI
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.stateIn
 import java.time.Duration
 import java.time.Instant
 
@@ -176,7 +172,14 @@ suspend fun addTodo(todoStore: DataStore<Todos>, title: String, description: Str
     }
 }
 
-suspend fun updateTodo(todoStore: DataStore<Todos>, title: String, description: String, timestamp: Long, id: String) {
+suspend fun updateTodo(
+    todoStore: DataStore<Todos>,
+    title: String,
+    description: String,
+    completionTime: Long,
+    id: String,
+    completedTime: Long = Long.MAX_VALUE
+) {
     todoStore.updateData { todos ->
         val todoItem = todos.todos.find { it.id == id }
         val todoIdx = todos.todos.indexOf(todoItem)
@@ -184,7 +187,8 @@ suspend fun updateTodo(todoStore: DataStore<Todos>, title: String, description: 
             title = title,
             description = description,
             timestamp = Instant.now().toEpochMilli(),
-            completionTime = timestamp
+            completionTime = completionTime,
+            completedTime = completedTime
         )
         val allTodos = todos.todos.map { it } as MutableList<TodoItem>
         allTodos[todoIdx] = newTodo
@@ -206,7 +210,7 @@ fun TodoScreen(onEdit: (Int) -> Unit) {
     Header(showDoneTodos) {
         showDoneTodos = it
     }
-    TodoList(todoList) {
+    TodoList(todoList, showDoneTodos) {
         onEdit(it)
     }
     // Or use workmanager here
@@ -249,44 +253,42 @@ private fun Header(currChecked: Boolean, onChecked: (Boolean) -> Unit) {
 }
 
 @Composable
-private fun TodoList(todos: List<UITodo>, onClick: (Int) -> Unit) {
+private fun TodoList(todos: List<UITodo>, showDoneTodos: Boolean, onClick: (Int) -> Unit) {
+    val store = getTodoStore()
+    val scope = rememberCoroutineScope()
+    var finishedId by remember { mutableStateOf<String?>(null) }
+    finishedId?.let {
+        LaunchedEffect(null) {
+            val todo = store.data.stateIn(scope).value.todos.first { it.id == finishedId }
+            updateTodo(store, todo.title, todo.description, todo.completionTime, todo.id, Instant.now().toEpochMilli())
+        }
+    }
     LazyColumn {
         items(count = todos.size) { idx ->
             val item = todos[idx]
-            Card(
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                modifier = Modifier
-                    .fillMaxWidth().fillMaxHeight()
-                    .padding(vertical = 8.dp, horizontal = 16.dp)
-                    .clickable { onClick(idx) }
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
+            if (!showDoneTodos && Instant.now().toEpochMilli() > item.completedTimestamp){
+            } else {
+                Card(
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                    modifier = Modifier
+                        .fillMaxWidth().fillMaxHeight()
+                        .padding(vertical = 8.dp, horizontal = 16.dp)
+                        .clickable { onClick(idx) }
                 ) {
-                    Column(modifier = Modifier.padding(16.dp).fillMaxWidth(.8f)) {
-                        Text(item.title, style = TextStyle().copy(fontWeight = FontWeight.Bold, fontSize = 16.sp))
-                        Text(text = item.description, modifier = Modifier)
-                    }
-                    Column(
-                        horizontalAlignment = Alignment.End,
-                        modifier = Modifier.fillMaxWidth().padding(8.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.End
                     ) {
-//                        IconButton(onClick = {}) {
-//                            Icon(
-//                                painter = painterResource(R.drawable.baseline_clear_24),
-//                                modifier = Modifier.size(36.dp),
-//                                contentDescription = null,
-//                                tint = Color.Black,
-//                            )
-//                        }
-//                        IconButton(onClick = {}) {
-//                            Icon(
-//                                painter = painterResource(R.drawable.baseline_edit_24),
-//                                modifier = Modifier.size(36.dp),
-//                                contentDescription = null,
-//                                tint = Color.Black,
-//                            )
-//                        }
+                        Column(modifier = Modifier.padding(16.dp).fillMaxWidth(.8f)) {
+                            Text(item.title, style = TextStyle().copy(fontWeight = FontWeight.Bold, fontSize = 16.sp))
+                            Text(text = item.description, modifier = Modifier)
+                        }
+                        Checkbox(
+                            onCheckedChange = {
+                                finishedId = item.id
+                            },
+                            checked = Instant.now().toEpochMilli() > item.completedTimestamp
+                        )
                     }
                 }
             }

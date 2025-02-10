@@ -11,9 +11,11 @@ fun Todos.toUI(): List<UITodo> {
 //        val time = Instant.ofEpochMilli(todoItem.timestamp).atZone(ZoneId.of("GMT"))
 //        val formattedTime = time.toLocalDateTime().format(DateTimeFormatter.ofPattern("EE, dd MMMM yyyy HH:mm:ss"))
         UITodo(
+            id = todoItem.id,
             title = todoItem.title.takeIf { it.isNotEmpty() } ?: "No title",
             description = todoItem.description.takeIf { it.isNotEmpty() } ?: "No description",
-            date = formatDate(todoItem.timestamp)
+            date = formatDate(todoItem.timestamp),
+            completedTimestamp = todoItem.completedTime
         )
     }
 }
