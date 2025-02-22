@@ -30,6 +30,11 @@ android {
                 "proguard-rules.pro"
             )
         }
+        debug {
+            kotlinOptions {
+                freeCompilerArgs = listOf("-Xdebug")
+            }
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8

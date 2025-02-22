@@ -79,6 +79,10 @@ class MainActivity: ComponentActivity() {
         setContent {
             var showModal by remember { mutableStateOf(false) }
             var editIdx by remember { mutableStateOf<Int?>(null) }
+            fun onModal(idx: Int?) {
+                editIdx = idx
+                showModal = idx != null
+            }
             MeetupTODOAppTheme {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -86,16 +90,10 @@ class MainActivity: ComponentActivity() {
                 ) { innerPadding ->
                     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
                     Column(modifier = Modifier.padding(innerPadding)) {
-                        TodoScreen {
-                            editIdx = it
-                            showModal = true
-                        }
+                        TodoScreen(::onModal)
 
                         if (showModal) {
-                            ModalUpdateTodo(bottomSheetState, editIdx) {
-                                editIdx = null
-                                showModal = false
-                            }
+                            ModalUpdateTodo(bottomSheetState, editIdx) { onModal(null )}
                         }
                     }
                 }
@@ -214,13 +212,13 @@ fun TodoScreen(onEdit: (Int) -> Unit) {
         onEdit(it)
     }
     // Or use workmanager here
-    WorkManager.getInstance(context).enqueueUniqueWork(
-        uniqueWorkName = "my work",
-        existingWorkPolicy = ExistingWorkPolicy.KEEP,
-        request = OneTimeWorkRequestBuilder<TodosWorker>()
-            .setInitialDelay(Duration.ofMillis(1000000))
-            .build()
-    )
+//    WorkManager.getInstance(context).enqueueUniqueWork(
+//        uniqueWorkName = "my work",
+//        existingWorkPolicy = ExistingWorkPolicy.KEEP,
+//        request = OneTimeWorkRequestBuilder<TodosWorker>()
+//            .setInitialDelay(Duration.ofMillis(1000000))
+//            .build()
+//    )
 //    ReminderService.setReminderTime("", 123L) {
 //
 //    }

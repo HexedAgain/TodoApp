@@ -3,6 +3,7 @@ package com.example.meetuptodoapp
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.FocusInteraction
 import androidx.compose.foundation.interaction.Interaction
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
@@ -43,6 +45,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.meetuptodoapp.domain.model.TodoItem
@@ -243,6 +246,7 @@ fun TitleSection(title: String, onUpdateTitle: (String) -> Unit) {
         value = title,
         onValueChange = onUpdateTitle,
         singleLine = true,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
         modifier = Modifier.padding(vertical = 8.dp).fillMaxWidth()
     )
 }
@@ -254,6 +258,7 @@ fun ColumnScope.TodoDescription(description: String, onUpdateDescription: (Strin
         value = description,
         onValueChange = onUpdateDescription,
         singleLine = false,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
         modifier = Modifier.padding(vertical = 8.dp).fillMaxWidth().weight(.25f)
     )
 }
@@ -261,7 +266,9 @@ fun ColumnScope.TodoDescription(description: String, onUpdateDescription: (Strin
 @Composable
 fun ToBeDoneByDate(timestamp: Long, onSelected: () -> Unit) {
     val interactionScope = remember {
-        getInteractionSource { onSelected() }
+        getInteractionSource {
+            onSelected()
+        }
     }
     Row {
         OutlinedTextField(
@@ -354,7 +361,7 @@ fun getInteractionSource(onClick: () -> Unit): MutableInteractionSource {
         )
 
         override suspend fun emit(interaction: Interaction) {
-            if (interaction is PressInteraction.Press) {
+            if (interaction is PressInteraction.Press || interaction is FocusInteraction.Focus) {
                 onClick()
             }
         }
