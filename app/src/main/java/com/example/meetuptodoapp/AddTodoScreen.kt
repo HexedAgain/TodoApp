@@ -3,6 +3,7 @@ package com.example.meetuptodoapp
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.FocusInteraction
 import androidx.compose.foundation.interaction.Interaction
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -42,12 +43,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.example.meetuptodoapp.domain.model.TodoItem
 import com.example.meetuptodoapp.utils.formatDate
 import com.example.meetuptodoapp.utils.formatTime
@@ -114,6 +117,7 @@ fun EditTodo(
     var showTimePicker by remember { mutableStateOf(false) }
     var isDone by remember { mutableStateOf(false) }
     if (isDone) {
+        println("isDone")
         onDone(title.value, description.value, timestamp.longValue)
     }
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -142,6 +146,7 @@ fun EditTodo(
                 timestamp.longValue = it
             }
             showDatePicker = false
+            // could set isDone true here if in test (total hack)
         }
     }
     if (showTimePicker) {
@@ -164,13 +169,23 @@ fun currTime(timestamp: Long): ZonedDateTime {
 
 @Composable
 fun CTAButton(title: String, description: String, timestamp: Long, isAdd: Boolean, onDone: () -> Unit) {
+    println("CTA button rendered")
+    val interactionScope = remember {
+        getInteractionSource {
+            onDone()
+        }
+    }
     Box(
         modifier = Modifier.padding(vertical = 16.dp).fillMaxWidth(),
         contentAlignment = Alignment.Center
     ) {
         Button(
+            interactionSource = interactionScope,
             enabled = title.isNotEmpty() && description.isNotEmpty() && timestamp > -1,
-            onClick = { onDone() }
+            onClick = {
+                println("CTA button clicked")
+                onDone()
+            },
         ) {
             Text(text = "${ if (isAdd) "Add" else "Update" } TODO")
         }
@@ -276,6 +291,7 @@ fun ToBeDoneByDate(timestamp: Long, onSelected: () -> Unit) {
             value = if (timestamp > -1) formatDate(timestamp, isVerbose = false) else "",
             onValueChange = {},
             readOnly = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
             trailingIcon = {
                 Icon(
                     painter = painterResource(R.drawable.baseline_calendar_month_24),
@@ -332,6 +348,10 @@ fun Calendar(initialTimestamp: Long, onClose: (Long?) -> Unit) {
         selectedDateMillis = initialTimestamp.takeIf { it > -1 } ?: Instant.now().toEpochMilli()
     }
     val currTime = currTime(initialTimestamp)
+    fun onDismiss() {
+        val hoursMinsOffset = (currTime.hour * 3600 + currTime.minute * 60) * 1000
+        onClose(datePickerState.selectedDateMillis?.plus(hoursMinsOffset.toLong()))
+    }
     Column(
         modifier = Modifier
             .fillMaxHeight()
@@ -339,11 +359,17 @@ fun Calendar(initialTimestamp: Long, onClose: (Long?) -> Unit) {
         verticalArrangement = Arrangement.Center,
     ) {
         DatePickerDialog(
-            confirmButton = {},
-            onDismissRequest = {
-                val hoursMinsOffset = (currTime.hour * 3600 + currTime.minute * 60) * 1000
-                onClose(datePickerState.selectedDateMillis?.plus(hoursMinsOffset.toLong()))
-            }
+            confirmButton = {
+                // Inject this from test
+//                Box(modifier = Modifier.testTag("datePickerConfirm").clickable { onDismiss() })
+                Button(onClick = {
+                    val hoursMinsOffset = (currTime.hour * 3600 + currTime.minute * 60) * 1000
+                    onClose(datePickerState.selectedDateMillis?.plus(hoursMinsOffset.toLong()))
+                }) {
+                    Text("Dismiss")
+                }
+            },
+            onDismissRequest = { onDismiss() }
         ) {
             DatePicker(
                 state = datePickerState,

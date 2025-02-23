@@ -10,12 +10,18 @@ import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onChild
 import androidx.compose.ui.test.onChildAt
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onParent
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performGesture
+import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.requestFocus
+import androidx.compose.ui.test.swipeUp
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.DataStoreFactory
 import androidx.datastore.core.Serializer
@@ -26,12 +32,17 @@ import com.example.meetuptodoapp.domain.model.TodosSerializer
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
@@ -44,17 +55,25 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.io.OutputStream
 import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatterBuilder
+import java.time.format.TextStyle
+import java.util.Locale
 import java.util.UUID
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [28])
 class AllTodosTest {
     @get:Rule
     val rule = createAndroidComposeRule<MainActivity>()
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val dispatcher = UnconfinedTestDispatcher()
+    val scope = TestScope(dispatcher)
 
     private lateinit var context: Context
     private lateinit var datastore: DataStore<Todos>
@@ -130,35 +149,44 @@ class AllTodosTest {
     }
 
     @Test
-    fun testSaveTodo() = runTest {
+    fun testSaveTodo() = runTest(dispatcher) {
         val application: TodoApplication = RuntimeEnvironment.getApplication() as TodoApplication
         val file = File(application.filesDir, "datastore/TODOSTEST")
         val field = TodoApplication::class.java.getDeclaredField("todoDataStore")
         field.isAccessible = true
         field.set(application, object: DataStore<Todos> {
-            val impl = DataStoreFactory.create(
-                serializer = TestSerializer,
-                produceFile = { file }
-            )
+            val impl = DataStoreFactory.create(serializer = TestSerializer, produceFile = { file })
             override val data: Flow<Todos>
                 get() = impl.data
-
             override suspend fun updateData(transform: suspend (t: Todos) -> Todos): Todos {
                 return impl.updateData { transform(it) }
             }
         })
-        datastore = application.todoDataStore
+        val date = Instant.now().atZone(ZoneId.of("GMT")).withDayOfMonth(28)
+        val dayStr = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.UK)
+        val dateStr = "$dayStr, 28/${date.monthValue.toString().padStart(2, '0')}/${date.year}"
         // assert here that the file exists maybe... perhaps show that the file is initially empty?
         rule.onRoot().onChild().onChildAt(4).performClick()
-        runBlocking { delay(1000) }
         val roots = rule.onAllNodes(isRoot())
-        var parent = roots[1].onChildAt(0).onChildAt(0).onChildAt(1)
+        val parent = roots[1].onChildAt(0).onChildAt(0).onChildAt(1)
         parent.onChildAt(1).requestFocus().performTextInput("Donald Duck")
         parent.onChildAt(2).requestFocus().performTextInput("Mickey Mouse")
         parent.onChildAt(3).requestFocus()
-        runBlocking { delay(1000) }
-        parent = roots[2]
-        rule.mainClock.advanceTimeBy(1000)
+        roots[2].onChildAt(0).onChildAt(0).onChildAt(0)
+            .onChildAt(0).onChildAt(3).onChildAt(10)
+            .onChildAt(27).performClick()
+        rule.onNodeWithText("Dismiss").performClick()
+        rule.onNodeWithText(dateStr).assertIsDisplayed()
+        parent.onChildAt(0).performTouchInput { swipeUp() }
+        parent.onChildAt(5).performClick()
+        withContext(Dispatchers.Unconfined) {
+            yield()
+            runBlocking { delay(3000) }
+            val currValue = String(FileInputStream( File(application.filesDir, "datastore/TODOSTEST")).readAllBytes())
+            println("test")
+        }
+//        roots[0].performClick()
+//        roots[2].performClick()
         rule.activity
 //        File(application.filesDir, "datastore/TODOSTEST").createNewFile()
 //        oStream = FileOutputStream(File(application.filesDir, "datastore/TODOSTEST"))
@@ -190,17 +218,24 @@ class AllTodosTest {
     }
 
     @Test
-    fun `it fetches todos from disk and displays them on screen`() = runTest {
-        datastore.updateData { Todos(todos = listOf(TodoItem("some-title"))) }
-        val mutStateFlow = MutableStateFlow(Todos(listOf()))
-        val stateFlow: MutableStateFlow<Todos> = mutStateFlow
-        val activity = rule.activity
-        val field = MainActivity::class.java.getDeclaredField("todoFlow")
-        field.isAccessible = true
-        field.set(activity, stateFlow)
-        rule.activity.setContent { }
-//        rule.setContent {
-//        }
+    fun `it fetches todos from disk and displays them on screen`() = runTest(dispatcher) {
+        rule.onRoot().onChild().onChildAt(4).performClick()
+        rule.onNodeWithText("testButton").performClick()
+        withContext(dispatcher) {
+            rule.runOnIdle {
+                rule.onNodeWithTag("testing", useUnmergedTree = true).performClick()
+            }
+        }
+//        datastore.updateData { Todos(todos = listOf(TodoItem("some-title"))) }
+//        val mutStateFlow = MutableStateFlow(Todos(listOf()))
+//        val stateFlow: MutableStateFlow<Todos> = mutStateFlow
+//        val activity = rule.activity
+//        val field = MainActivity::class.java.getDeclaredField("todoFlow")
+//        field.isAccessible = true
+//        field.set(activity, stateFlow)
+//        rule.activity.setContent { }
+////        rule.setContent {
+////        }
 
         rule.onNodeWithText("Testing Compose").assertIsDisplayed()
     }
