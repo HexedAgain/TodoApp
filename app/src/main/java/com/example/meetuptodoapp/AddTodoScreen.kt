@@ -52,9 +52,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.example.meetuptodoapp.domain.model.TodoItem
+import com.example.meetuptodoapp.domain.model.Todos
 import com.example.meetuptodoapp.utils.formatDate
 import com.example.meetuptodoapp.utils.formatTime
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -67,7 +69,8 @@ import java.util.Locale
 fun AddTodoScreen(
     todoIdx: Int?,
     onUpdate: @Composable (String, String, Long, String?) -> Unit,
-    onDelete: @Composable (String) -> Unit
+    onDelete: @Composable (String) -> Unit,
+    todoFlow: Flow<Todos>
 ) {
     var todo by remember { mutableStateOf<TodoItem?>(null) }
     var deleteId by remember { mutableStateOf<String?>(null) }
@@ -96,7 +99,8 @@ fun AddTodoScreen(
             else -> ViewTodo(
                 todoIdx = todoIdx,
                 onUpdate = { todo = it },
-                onDelete = { deleteId = it.id }
+                onDelete = { deleteId = it.id },
+                todoFlow = todoFlow
             )
         }
     }
@@ -196,9 +200,10 @@ fun CTAButton(title: String, description: String, timestamp: Long, isAdd: Boolea
 fun ViewTodo(
     todoIdx: Int,
     onUpdate: (TodoItem) -> Unit,
-    onDelete: (TodoItem) -> Unit
+    onDelete: (TodoItem) -> Unit,
+    todoFlow: Flow<Todos>
 ) {
-    val todoFlow = (LocalContext.current.applicationContext as TodoApplication).todoDataStore.data
+//    val todoFlow = (LocalContext.current.applicationContext as TodoApplication).todoDataStore.data
     val todo = runBlocking { todoFlow.first().todos[todoIdx] }
     Column(modifier = Modifier.fillMaxWidth().fillMaxHeight()) {
         TextBox("Title", todo.title)

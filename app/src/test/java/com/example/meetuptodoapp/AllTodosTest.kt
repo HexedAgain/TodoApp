@@ -162,48 +162,31 @@ class AllTodosTest {
 
     @Test
     fun testMakeTodo() = runTest(dispatcher) {
-//    fun testMakeTodo() = scope.runTest(timeout = 10000.milliseconds) {
         val application: TodoApplication = RuntimeEnvironment.getApplication() as TodoApplication
         val expected =
             "{\"todos\":[{\"id\":\"ID\",\"title\":\"Donald Duck\",\"description\":\"Mickey Mouse\",\"timestamp\":TIMESTAMP,\"completionTime\":1740787140000}]}"
-//        val file = File(application.filesDir, "datastore/TODOSTEST")
-//        val field = TodoApplication::class.java.getDeclaredField("todoDataStore")
-//        field.isAccessible = true
-//        field.set(application, object: DataStore<Todos> {
-//            val impl = DataStoreFactory.create(
-//                serializer = TestSerializer,
-//                produceFile = { file },
-//                scope = scope
-//            )
-//            override val data: Flow<Todos>
-//                get() = impl.data
-//
-//            override suspend fun updateData(transform: suspend (t: Todos) -> Todos): Todos {
-//                return impl.updateData { transform(it) }
-//            }
-//        })
-//        datastore = field.get(application) as DataStore<Todos>
-//        datastore.updateData { Todos(todos = listOf(TodoItem())) }
         rule.onRoot().onChild().onChildAt(4).performClick()
         val roots = rule.onAllNodes(isRoot())
         val parent = roots[1].onChildAt(0).onChildAt(0).onChildAt(1)
         parent.onChildAt(1).requestFocus().performTextInput("Donald Duck")
         parent.onChildAt(2).requestFocus().performTextInput("Mickey Mouse")
+        parent.onChildAt(5).performClick()
+        testScheduler.advanceUntilIdle()
+        rule.onAllNodes(isRoot())[1].assertIsDisplayed()
         parent.onChildAt(3).requestFocus()
         roots[2].onChildAt(0).onChildAt(0).onChildAt(0)
             .onChildAt(0).onChildAt(3).onChildAt(10)
             .onChildAt(27).performClick()
-        //rule.onNodeWithText("Dismiss").performClick()
         rule.onNodeWithText("Done").performClick()
         rule.activity.onBackPressedDispatcher.onBackPressed()
-//        rule.onNodeWithTag("datePickerConfirm").performClick()
         val date = Instant.now().atZone(ZoneId.of("GMT")).withDayOfMonth(28)
         val dayStr = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.UK)
         val dateStr = "$dayStr, 28/${date.monthValue.toString().padStart(2, '0')}/${date.year}"
         rule.onNodeWithText(dateStr).assertIsDisplayed()
         parent.onChildAt(0).performTouchInput { swipeUp() }
-        rule.onAllNodes(isRoot())[2].assertIsNotDisplayed()
         parent.onChildAt(5).performClick()
+        testScheduler.advanceUntilIdle()
+        rule.onAllNodes(isRoot())[2].assertIsNotDisplayed()
         var actual: String
         withContext(Dispatchers.Unconfined) {
             runBlocking { delay(1000) }
@@ -213,41 +196,16 @@ class AllTodosTest {
         }
         rule.onAllNodes(isRoot())[1].assertIsNotDisplayed()
         assertEquals(expected, actual)
-        rule.onNodeWithText("Donald Duck")
+        val field = MainActivity::class.java.getDeclaredField("todoDataStore")
+        field.isAccessible = true
+        val todoFlow = (field.get(rule.activity) as TodoStore).data
+        val todos = todoFlow.first().todos
+        assertEquals(1, todos.size)
+        rule.onNodeWithText(todos.first().title)
             .assertIsDisplayed()
-        rule.onNodeWithText("Mickey Mouse")
+        rule.onNodeWithText(todos.first().description)
             .assertIsDisplayed()
         println(rule.onRoot(useUnmergedTree = true).printToString())
-//        roots[0].performClick()
-//        roots[2].performClick()
-//        rule.activity
-//        File(application.filesDir, "datastore/TODOSTEST").createNewFile()
-//        oStream = FileOutputStream(File(application.filesDir, "datastore/TODOSTEST"))
-//        oStream = FileOutputStream(file)
-//        val json = "{\"todos\":[{\"id\":\"4d7a3376-b6ab-4b24-b8c4-b7b4ea3aaa9b\",\"title\":\"Get a quote for car insurance\",\"description\":\"Find the cheapest quote for car insurance\",\"timestamp\":1740240154864},{\"id\":\"d57eaac9-dbdc-4d66-b5fd-56e53b6d55a7\",\"title\":\"Weekly shopping\",\"description\":\"Starting to run low on food, make a quick trip to TESCOs\",\"timestamp\":1740240154864}]}"
-//        oStream.write(json.toByteArray())
-//        val thing = SingleProcessDataStore::class.java
-//        runBlocking {
-//            datastore.updateData {
-//                Todos(
-//                    todos = listOf(
-//                        TodoItem(
-//                            id = UUID.randomUUID().toString(),
-//                            title = "Get a quote for car insurance",
-//                            description = "Find the cheapest quote for car insurance",
-//                            timestamp = Instant.now().toEpochMilli() + 10000000
-//                        ),
-//                        TodoItem(
-//                            id = UUID.randomUUID().toString(),
-//                            title = "Weekly shopping",
-//                            description = "Starting to run low on food, make a quick trip to TESCOs",
-//                            timestamp = Instant.now().toEpochMilli() + 10000000
-//                        )
-//                    )
-//                )
-//            }
-//        }
-//        val thing = ""
     }
 
     @Test

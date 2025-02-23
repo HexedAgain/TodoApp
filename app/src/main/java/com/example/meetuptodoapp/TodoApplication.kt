@@ -9,7 +9,7 @@ import com.example.meetuptodoapp.domain.model.TodosSerializer
 //import com.google.firebase.FirebaseApp
 
 class TodoApplication: Application() {
-    val todoDataStore: DataStore<Todos> = TodoStore(this)
+//    val todoDataStore: DataStore<Todos> = TodoStore(this)
     override fun onCreate() {
         super.onCreate()
 //        FirebaseApp.initializeApp(this)
