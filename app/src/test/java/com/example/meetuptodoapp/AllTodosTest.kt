@@ -27,13 +27,18 @@ import androidx.compose.ui.test.swipeUp
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.DataStoreFactory
 import androidx.datastore.core.Serializer
+import com.example.meetuptodoapp.api.TodoClient
+import com.example.meetuptodoapp.api.TodoRepository
 import com.example.meetuptodoapp.domain.model.TodoItem
 import com.example.meetuptodoapp.domain.model.TodoStore
 import com.example.meetuptodoapp.domain.model.Todos
 import com.example.meetuptodoapp.domain.model.TodosSerializer
+import io.ktor.client.request.post
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
+import io.mockk.spyk
 import junit.framework.TestCase.assertEquals
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -165,6 +170,21 @@ class AllTodosTest {
         val application: TodoApplication = RuntimeEnvironment.getApplication() as TodoApplication
         val expected =
             "{\"todos\":[{\"id\":\"ID\",\"title\":\"Donald Duck\",\"description\":\"Mickey Mouse\",\"timestamp\":TIMESTAMP,\"completionTime\":1740787140000}]}"
+
+        var field = MainActivity::class.java.getDeclaredField("repo")
+        field.isAccessible = true
+        val repo = field.get(rule.activity)
+        field = TodoRepository::class.java.getDeclaredField("todoClient")
+        field.isAccessible = true
+        val client: TodoClient = field.get(repo) as TodoClient
+        val spyClient = spyk(client)
+        coEvery { spyClient.post(any(), any()) }.answers { }
+
+        field.set(repo, spyClient)
+        field = MainActivity::class.java.getDeclaredField("todoDataStore")
+        field.isAccessible = true
+        val todoFlow = (field.get(rule.activity) as TodoStore).data
+
         rule.onRoot().onChild().onChildAt(4).performClick()
         val roots = rule.onAllNodes(isRoot())
         val parent = roots[1].onChildAt(0).onChildAt(0).onChildAt(1)
@@ -173,6 +193,7 @@ class AllTodosTest {
         parent.onChildAt(5).performClick()
         testScheduler.advanceUntilIdle()
         rule.onAllNodes(isRoot())[1].assertIsDisplayed()
+
         parent.onChildAt(3).requestFocus()
         roots[2].onChildAt(0).onChildAt(0).onChildAt(0)
             .onChildAt(0).onChildAt(3).onChildAt(10)
@@ -183,10 +204,13 @@ class AllTodosTest {
         val dayStr = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.UK)
         val dateStr = "$dayStr, 28/${date.monthValue.toString().padStart(2, '0')}/${date.year}"
         rule.onNodeWithText(dateStr).assertIsDisplayed()
+
         parent.onChildAt(0).performTouchInput { swipeUp() }
         parent.onChildAt(5).performClick()
         testScheduler.advanceUntilIdle()
         rule.onAllNodes(isRoot())[2].assertIsNotDisplayed()
+
+        // FIXME (delete) Note: we haven't yet finished repo call so modal still visible
         var actual: String
         withContext(Dispatchers.Unconfined) {
             runBlocking { delay(1000) }
@@ -196,16 +220,13 @@ class AllTodosTest {
         }
         rule.onAllNodes(isRoot())[1].assertIsNotDisplayed()
         assertEquals(expected, actual)
-        val field = MainActivity::class.java.getDeclaredField("todoDataStore")
-        field.isAccessible = true
-        val todoFlow = (field.get(rule.activity) as TodoStore).data
+
         val todos = todoFlow.first().todos
         assertEquals(1, todos.size)
         rule.onNodeWithText(todos.first().title)
             .assertIsDisplayed()
         rule.onNodeWithText(todos.first().description)
             .assertIsDisplayed()
-        println(rule.onRoot(useUnmergedTree = true).printToString())
     }
 
     @Test

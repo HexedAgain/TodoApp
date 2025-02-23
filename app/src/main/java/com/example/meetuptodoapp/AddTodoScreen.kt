@@ -174,17 +174,17 @@ fun currTime(timestamp: Long): ZonedDateTime {
 @Composable
 fun CTAButton(title: String, description: String, timestamp: Long, isAdd: Boolean, onDone: () -> Unit) {
     println("CTA button rendered")
-    val interactionScope = remember {
-        getInteractionSource {
-            onDone()
-        }
-    }
+//    val interactionScope = remember {
+//        getInteractionSource {
+//            onDone()
+//        }
+//    }
     Box(
         modifier = Modifier.padding(vertical = 16.dp).fillMaxWidth(),
         contentAlignment = Alignment.Center
     ) {
         Button(
-            interactionSource = interactionScope,
+//            interactionSource = interactionScope,
             enabled = title.isNotEmpty() && description.isNotEmpty() && timestamp > -1,
             onClick = {
                 println("CTA button clicked")

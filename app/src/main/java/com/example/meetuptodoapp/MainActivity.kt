@@ -52,6 +52,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import com.example.meetuptodoapp.api.TodoRepository
 import com.example.meetuptodoapp.domain.model.TodoItem
 import com.example.meetuptodoapp.domain.model.TodoStore
 import com.example.meetuptodoapp.domain.model.Todos
@@ -71,6 +72,7 @@ import java.util.UUID
 
 class MainActivity: ComponentActivity() {
     private val todoDataStore: DataStore<Todos> = TodoStore(this)
+    private val repo = TodoRepository()
     // Things we would like to test (and be sure to make them outrageously large):
     // - that when we launch this screen we show all the todos that are available on disk
     // - that when we click the fab that we launch an activity to create a new todo
@@ -126,27 +128,29 @@ class MainActivity: ComponentActivity() {
     @Composable
     fun commitTodo(title: String, description: String, timestamp: Long, id: String?, onFinish: () -> Unit) {
         LaunchedEffect(null) {
-            if (id == null) {
+            val todo = if (id == null) {
                 addTodo(todoDataStore, title, description, timestamp)
             } else {
                 updateTodo(todoDataStore, title, description, timestamp, id)
             }
-            onFinish()
+            repo.logTodoStats(todo) {
+                onFinish()
+            }
         }
     }
 
-    suspend fun addTodo(todoStore: DataStore<Todos>, title: String, description: String, timestamp: Long) {
+    suspend fun addTodo(todoStore: DataStore<Todos>, title: String, description: String, timestamp: Long): TodoItem {
+        val thisTodo = TodoItem(
+            id = UUID.randomUUID().toString(),
+            title = title,
+            description = description,
+            timestamp = Instant.now().toEpochMilli(),
+            completionTime = timestamp
+        )
         todoStore.updateData { todos ->
-            Log.i("COMMIT", "will update data")
-            val thisTodo = TodoItem(
-                id = UUID.randomUUID().toString(),
-                title = title,
-                description = description,
-                timestamp = Instant.now().toEpochMilli(),
-                completionTime = timestamp
-            )
             todos.copy(todos = todos.todos + thisTodo)
         }
+        return thisTodo
     }
 
     suspend fun updateTodo(
@@ -156,11 +160,12 @@ class MainActivity: ComponentActivity() {
         completionTime: Long,
         id: String,
         completedTime: Long = Long.MAX_VALUE
-    ) {
+    ): TodoItem {
+        var newTodo: TodoItem = TodoItem.default()
         todoStore.updateData { todos ->
             val todoItem = todos.todos.find { it.id == id }
             val todoIdx = todos.todos.indexOf(todoItem)
-            val newTodo = TodoItem(
+            newTodo = TodoItem(
                 title = title,
                 description = description,
                 timestamp = Instant.now().toEpochMilli(),
@@ -171,6 +176,7 @@ class MainActivity: ComponentActivity() {
             allTodos[todoIdx] = newTodo
             todos.copy(todos = allTodos)
         }
+        return newTodo
     }
 
     @SuppressLint("CoroutineCreationDuringComposition")
