@@ -15,10 +15,14 @@ import java.io.File
 //    serializer = TodosSerializer
 //)
 
-class TodoStore(context: Context): DataStore<Todos> {
+class TodoStore(val context: Context): DataStore<Todos> {
+//    private val produceFile: File = File(context.filesDir, "datastore/TODOS")
+//    private lateinit var produceFile: File
     val impl = DataStoreFactory.create(
+
         serializer = TodosSerializer,
         produceFile = { File(context.filesDir, "datastore/TODOS") }
+//        produceFile = { produceFile }
     )
     override val data: Flow<Todos>
         get() = impl.data

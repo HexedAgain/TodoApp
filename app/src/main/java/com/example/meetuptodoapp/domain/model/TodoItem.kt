@@ -3,7 +3,6 @@ package com.example.meetuptodoapp.domain.model
 import kotlinx.serialization.Serializable
 import java.time.Instant
 import java.util.UUID
-import kotlin.uuid.Uuid
 
 @Serializable
 data class TodoItem(

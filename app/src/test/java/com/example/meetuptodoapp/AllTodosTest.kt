@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onChild
@@ -20,6 +21,7 @@ import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.printToString
 import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.test.swipeUp
 import androidx.datastore.core.DataStore
@@ -29,13 +31,17 @@ import com.example.meetuptodoapp.domain.model.TodoItem
 import com.example.meetuptodoapp.domain.model.TodoStore
 import com.example.meetuptodoapp.domain.model.Todos
 import com.example.meetuptodoapp.domain.model.TodosSerializer
+import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
+import junit.framework.TestCase.assertEquals
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
@@ -65,6 +71,7 @@ import java.time.format.DateTimeFormatterBuilder
 import java.time.format.TextStyle
 import java.util.Locale
 import java.util.UUID
+import kotlin.time.Duration.Companion.milliseconds
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [28])
@@ -118,6 +125,11 @@ class AllTodosTest {
 
     @Before
     fun setup() = runTest {
+//        mockkStatic(UUID::class)
+//        val mockUUID = mockk<UUID>()
+//        every { mockUUID.toString() } returns "935b2608-e45b-4ede-ba9f-c22d294d0307"
+//        every { mockUUID.toString() } returns "11742402294532"
+//        every { UUID.randomUUID() } returns mockUUID
 //        val application: TodoApplication = RuntimeEnvironment.getApplication() as TodoApplication
 //        datastore = application.todoDataStore
 //        val field = TodoApplication::class.java.getDeclaredField("todoDataStore")
@@ -149,23 +161,29 @@ class AllTodosTest {
     }
 
     @Test
-    fun testSaveTodo() = runTest(dispatcher) {
+    fun testMakeTodo() = runTest(dispatcher) {
+//    fun testMakeTodo() = scope.runTest(timeout = 10000.milliseconds) {
         val application: TodoApplication = RuntimeEnvironment.getApplication() as TodoApplication
-        val file = File(application.filesDir, "datastore/TODOSTEST")
-        val field = TodoApplication::class.java.getDeclaredField("todoDataStore")
-        field.isAccessible = true
-        field.set(application, object: DataStore<Todos> {
-            val impl = DataStoreFactory.create(serializer = TestSerializer, produceFile = { file })
-            override val data: Flow<Todos>
-                get() = impl.data
-            override suspend fun updateData(transform: suspend (t: Todos) -> Todos): Todos {
-                return impl.updateData { transform(it) }
-            }
-        })
-        val date = Instant.now().atZone(ZoneId.of("GMT")).withDayOfMonth(28)
-        val dayStr = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.UK)
-        val dateStr = "$dayStr, 28/${date.monthValue.toString().padStart(2, '0')}/${date.year}"
-        // assert here that the file exists maybe... perhaps show that the file is initially empty?
+        val expected =
+            "{\"todos\":[{\"id\":\"ID\",\"title\":\"Donald Duck\",\"description\":\"Mickey Mouse\",\"timestamp\":TIMESTAMP,\"completionTime\":1740787140000}]}"
+//        val file = File(application.filesDir, "datastore/TODOSTEST")
+//        val field = TodoApplication::class.java.getDeclaredField("todoDataStore")
+//        field.isAccessible = true
+//        field.set(application, object: DataStore<Todos> {
+//            val impl = DataStoreFactory.create(
+//                serializer = TestSerializer,
+//                produceFile = { file },
+//                scope = scope
+//            )
+//            override val data: Flow<Todos>
+//                get() = impl.data
+//
+//            override suspend fun updateData(transform: suspend (t: Todos) -> Todos): Todos {
+//                return impl.updateData { transform(it) }
+//            }
+//        })
+//        datastore = field.get(application) as DataStore<Todos>
+//        datastore.updateData { Todos(todos = listOf(TodoItem())) }
         rule.onRoot().onChild().onChildAt(4).performClick()
         val roots = rule.onAllNodes(isRoot())
         val parent = roots[1].onChildAt(0).onChildAt(0).onChildAt(1)
@@ -175,19 +193,34 @@ class AllTodosTest {
         roots[2].onChildAt(0).onChildAt(0).onChildAt(0)
             .onChildAt(0).onChildAt(3).onChildAt(10)
             .onChildAt(27).performClick()
-        rule.onNodeWithText("Dismiss").performClick()
+        //rule.onNodeWithText("Dismiss").performClick()
+        rule.onNodeWithText("Done").performClick()
+        rule.activity.onBackPressedDispatcher.onBackPressed()
+//        rule.onNodeWithTag("datePickerConfirm").performClick()
+        val date = Instant.now().atZone(ZoneId.of("GMT")).withDayOfMonth(28)
+        val dayStr = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.UK)
+        val dateStr = "$dayStr, 28/${date.monthValue.toString().padStart(2, '0')}/${date.year}"
         rule.onNodeWithText(dateStr).assertIsDisplayed()
         parent.onChildAt(0).performTouchInput { swipeUp() }
+        rule.onAllNodes(isRoot())[2].assertIsNotDisplayed()
         parent.onChildAt(5).performClick()
+        var actual: String
         withContext(Dispatchers.Unconfined) {
-            yield()
-            runBlocking { delay(3000) }
-            val currValue = String(FileInputStream( File(application.filesDir, "datastore/TODOSTEST")).readAllBytes())
-            println("test")
+            runBlocking { delay(1000) }
+            actual = String(FileInputStream(File( application.filesDir, "datastore/TODOS")).readAllBytes())
+                .replace(Regex("\"(id)\":\"[a-z0-9\\-]*\""), "\"$1\":\"ID\"")
+                .replace(Regex("\"(timestamp)\":[0-9]*"), "\"$1\":TIMESTAMP")
         }
+        rule.onAllNodes(isRoot())[1].assertIsNotDisplayed()
+        assertEquals(expected, actual)
+        rule.onNodeWithText("Donald Duck")
+            .assertIsDisplayed()
+        rule.onNodeWithText("Mickey Mouse")
+            .assertIsDisplayed()
+        println(rule.onRoot(useUnmergedTree = true).printToString())
 //        roots[0].performClick()
 //        roots[2].performClick()
-        rule.activity
+//        rule.activity
 //        File(application.filesDir, "datastore/TODOSTEST").createNewFile()
 //        oStream = FileOutputStream(File(application.filesDir, "datastore/TODOSTEST"))
 //        oStream = FileOutputStream(file)

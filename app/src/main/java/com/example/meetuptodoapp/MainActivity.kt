@@ -1,5 +1,6 @@
 package com.example.meetuptodoapp
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -47,22 +48,29 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.core.DataStore
+import androidx.lifecycle.lifecycleScope
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.example.meetuptodoapp.domain.model.TodoItem
+import com.example.meetuptodoapp.domain.model.TodoStore
 import com.example.meetuptodoapp.domain.model.Todos
 import com.example.meetuptodoapp.ui.model.UITodo
 import com.example.meetuptodoapp.domain.work.TodosWorker
 import com.example.meetuptodoapp.ui.theme.MeetupTODOAppTheme
 import com.example.meetuptodoapp.utils.toUI
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.Instant
+import java.util.UUID
 
 class MainActivity: ComponentActivity() {
+    val todoDataStore: DataStore<Todos> = TodoStore(this)
     // Things we would like to test (and be sure to make them outrageously large):
     // - that when we launch this screen we show all the todos that are available on disk
     // - that when we click the fab that we launch an activity to create a new todo
@@ -92,7 +100,7 @@ class MainActivity: ComponentActivity() {
                 ) { innerPadding ->
                     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
                     Column(modifier = Modifier.padding(innerPadding)) {
-                        TodoScreen(::onModal)
+                        TodoScreen(::onModal, lifecycleScope)
 
                         if (showModal) {
                             ModalUpdateTodo(bottomSheetState, editIdx) { onModal(null )}
@@ -160,15 +168,14 @@ fun commitTodo(title: String, description: String, timestamp: Long, id: String?,
 suspend fun addTodo(todoStore: DataStore<Todos>, title: String, description: String, timestamp: Long) {
     todoStore.updateData { todos ->
         Log.i("COMMIT", "will update data")
-        todos.copy(
-            todos = todos.todos +
-                TodoItem(
-                    title = title,
-                    description = description,
-                    timestamp = Instant.now().toEpochMilli(),
-                    completionTime = timestamp
-                )
+        val thisTodo = TodoItem(
+            id = UUID.randomUUID().toString(),
+            title = title,
+            description = description,
+            timestamp = Instant.now().toEpochMilli(),
+            completionTime = timestamp
         )
+        todos.copy(todos = todos.todos + thisTodo)
     }
 }
 
@@ -196,15 +203,19 @@ suspend fun updateTodo(
     }
 }
 
+@SuppressLint("CoroutineCreationDuringComposition")
 @Composable
-fun TodoScreen(onEdit: (Int) -> Unit) {
+fun TodoScreen(onEdit: (Int) -> Unit, coroutineScope: CoroutineScope) {
     val context = LocalContext.current
     val todoFlow = getTodoStore()
     var todoList: List<UITodo> by remember { mutableStateOf(listOf()) }
-    LaunchedEffect(null) {
+    coroutineScope.launch {
+        println("coroutine scope launched")
         todoFlow.data.distinctUntilChanged().map { it.toUI() }.collect { latestTodos ->
             todoList = latestTodos
         }
+    }.invokeOnCompletion {
+        println("completed")
     }
     var showDoneTodos by remember { mutableStateOf(false) }
     Header(showDoneTodos) {
@@ -213,17 +224,6 @@ fun TodoScreen(onEdit: (Int) -> Unit) {
     TodoList(todoList, showDoneTodos) {
         onEdit(it)
     }
-    // Or use workmanager here
-//    WorkManager.getInstance(context).enqueueUniqueWork(
-//        uniqueWorkName = "my work",
-//        existingWorkPolicy = ExistingWorkPolicy.KEEP,
-//        request = OneTimeWorkRequestBuilder<TodosWorker>()
-//            .setInitialDelay(Duration.ofMillis(1000000))
-//            .build()
-//    )
-//    ReminderService.setReminderTime("", 123L) {
-//
-//    }
 }
 
 @Composable

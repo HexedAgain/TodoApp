@@ -363,10 +363,11 @@ fun Calendar(initialTimestamp: Long, onClose: (Long?) -> Unit) {
                 // Inject this from test
 //                Box(modifier = Modifier.testTag("datePickerConfirm").clickable { onDismiss() })
                 Button(onClick = {
-                    val hoursMinsOffset = (currTime.hour * 3600 + currTime.minute * 60) * 1000
-                    onClose(datePickerState.selectedDateMillis?.plus(hoursMinsOffset.toLong()))
+                    onDismiss()
+//                    val hoursMinsOffset = (currTime.hour * 3600 + currTime.minute * 60) * 1000
+//                    onClose(datePickerState.selectedDateMillis?.plus(hoursMinsOffset.toLong()))
                 }) {
-                    Text("Dismiss")
+                    Text("Done")
                 }
             },
             onDismissRequest = { onDismiss() }
