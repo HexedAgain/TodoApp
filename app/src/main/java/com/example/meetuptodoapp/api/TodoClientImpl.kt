@@ -1,6 +1,5 @@
 package com.example.meetuptodoapp.api
 
-import android.net.http.HttpEngine
 import android.util.Log
 import com.example.meetuptodoapp.domain.model.TodoItem
 import io.ktor.client.HttpClient
@@ -15,13 +14,16 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import kotlinx.serialization.json.Json
 
-class TodoClient {
-    suspend fun <T: Any> post(postBody: T, url: String) {
+interface TodoClient {
+    suspend fun <T: Any> post(postBody: T, url: String)
+}
+
+class TodoClientImpl: TodoClient {
+    override suspend fun <T: Any> post(postBody: T, url: String) {
         client.post<TodoItem>(url) {
             body = postBody
             header(HttpHeaders.ContentType, ContentType.Application.Json)
         }
-        val x = 5
     }
 
     private val client = HttpClient(Android) {

@@ -2,6 +2,7 @@ package com.example.meetuptodoapp.di
 
 import com.example.meetuptodoapp.TodoViewModel
 import com.example.meetuptodoapp.api.TodoClient
+import com.example.meetuptodoapp.api.TodoClientImpl
 import com.example.meetuptodoapp.api.TodoRepository
 import com.example.meetuptodoapp.domain.model.TodoStore
 import org.koin.core.module.dsl.viewModel
@@ -9,11 +10,16 @@ import org.koin.dsl.module
 
 val appModule = module {
     single {
-        TodoRepository()
+        TodoRepository(get())
     }
 
-    single {
-        TodoClient()
+    single<TodoClient> {
+        // Just a stub
+        object : TodoClient {
+            override suspend fun <T: Any> post(postBody: T, url: String) {
+                println("test")
+            }
+        }
     }
 
     single {

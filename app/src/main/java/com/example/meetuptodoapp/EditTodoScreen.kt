@@ -24,7 +24,6 @@ import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DatePickerState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -32,6 +31,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TimePickerState
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -55,22 +55,15 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import java.time.Instant
 import java.time.ZoneId
-import java.util.Locale
 
+// FIXME - move strings to resources
 @Composable
 fun AddTodoScreen(
-    //todoIdx: Int?,
-//    currentTodoItem: TodoItem?,
     todoAction: TodoAction,
-//    onUpdate: @Composable (String, String, Long, TodoItem?) -> Unit,
     onUpdate: (TodoItem) -> Unit,
     onDelete: (TodoItem) -> Unit,
     onDone: @Composable (TodoEditor) -> Unit
-//    todoFlow: Flow<Todos>
 ) {
-//    var todo by remember { mutableStateOf<TodoItem?>(null) }
-//    var deleteId by remember { mutableStateOf<String?>(null) }
-
     Box(
         modifier = Modifier.padding(16.dp),
     ) {
@@ -78,43 +71,15 @@ fun AddTodoScreen(
             is TodoAction.ViewTodo -> {
                 ViewTodo(todoAction.todo, onDelete = onDelete, onUpdate = onUpdate)
             }
-            is TodoAction.UpdateTodo -> {}
-            is TodoAction.CreateTodo ->
+            is TodoAction.UpdateTodo -> {
                 EditTodo(todoEditor = todoAction.todoEditor, onDone = onDone)
+            }
+            is TodoAction.CreateTodo -> {
+                EditTodo(todoEditor = todoAction.todoEditor, onDone = onDone)
+            }
 
             else -> {}
         }
-//        when {
-//            deleteId != null -> {
-//                deleteId?.let {
-//                    onDelete(it)
-//                }
-//            }
-////            todo != null -> {
-////                todo?.let {
-////                    EditTodo(it.title, it.description, it.completionTime) { title, description, timestamp ->
-////                        onUpdate(title, description, timestamp, it)
-////                    }
-////                }
-////            }
-//            currentTodoItem != null -> {
-//                EditTodo { title, description, timestamp ->
-//                    onUpdate(title, description, timestamp, currentTodoItem)
-//                }
-//            }
-////            todoIdx == null -> {
-////                EditTodo { title, description, timestamp ->
-////                    onUpdate(title, description, timestamp, null)
-////                }
-////            }
-//            else -> ViewTodo(
-////                todoIdx = todoIdx,
-//                currentTodoItem = currentTodoItem,
-//                onUpdate = { todo = it },
-//                onDelete = { deleteId = it.id },
-//                todoFlow = todoFlow
-//            )
-//        }
     }
 }
 
@@ -139,10 +104,16 @@ fun EditTodo(
         TitleSection(title, todoEditor::updateTitle)
         TodoDescription(description, todoEditor::updateDescription)
         Row {
-            ToBeDoneByDate(timestamp, todoEditor::showDatePicker)
-            ToBeDoneByTime(timestamp, todoEditor::showTimePicker)
+            ToBeDoneByDate(
+                timestamp = timestamp,
+                onSelected = todoEditor::showDatePicker
+            )
+            ToBeDoneByTime(
+                timestamp = timestamp,
+                onSelected = todoEditor::showTimePicker
+            )
         }
-        CTAButton(isEnabled = todoEditor.isValid(), isAdd = true) {
+        CTAButton(isEnabled = todoEditor.isValid(), buttonText = todoEditor.buttonText()) {
             // This now should update state
             isDone = true
         }
@@ -150,19 +121,21 @@ fun EditTodo(
     }
 
     if (showDatePicker) {
-        Calendar(initialTimestamp = timestamp, onClose = todoEditor::updateCompletedByDate)
+        Calendar(
+            initialTimestamp = todoEditor.initialTimestamp(),
+            onClose = todoEditor::updateCompletedByDate
+        )
     }
     if (showTimePicker) {
-        Clock(timestamp = timestamp, onClose = todoEditor::updateHoursMins)
+        Clock(
+            timestamp = timestamp,
+            onClose = todoEditor::updateHoursMins
+        )
     }
 }
 
-//fun currTime(timestamp: Long): ZonedDateTime {
-//    return Instant.ofEpochMilli(timestamp).atZone(ZoneId.of("GMT"))
-//}
-
 @Composable
-fun CTAButton(isEnabled: Boolean, isAdd: Boolean, onDone: () -> Unit) {
+fun CTAButton(isEnabled: Boolean, buttonText: String, onDone: () -> Unit) {
     Box(
         modifier = Modifier.padding(vertical = 16.dp).fillMaxWidth(),
         contentAlignment = Alignment.Center
@@ -174,22 +147,17 @@ fun CTAButton(isEnabled: Boolean, isAdd: Boolean, onDone: () -> Unit) {
                 onDone()
             },
         ) {
-            // FIXME - editor should supply this
-            Text(text = "${ if (isAdd) "Add" else "Update" } TODO")
+            Text(text = buttonText)
         }
     }
 }
 
 @Composable
 fun ViewTodo(
-//    todoIdx: Int,
     currentTodoItem: TodoItem,
     onUpdate: (TodoItem) -> Unit,
     onDelete: (TodoItem) -> Unit,
-//    todoFlow: Flow<Todos>
 ) {
-//    val todoFlow = (LocalContext.current.applicationContext as TodoApplication).todoDataStore.data
-//    val todo = runBlocking { todoFlow.first().todos[todoIdx] }
     Column(modifier = Modifier.fillMaxWidth().fillMaxHeight()) {
         TextBox(label = "Title", text = currentTodoItem.title)
         TextBox(label = "Description", text = currentTodoItem.description)
@@ -261,7 +229,7 @@ fun ColumnScope.TodoDescription(description: String, onUpdateDescription: (Strin
         onValueChange = onUpdateDescription,
         singleLine = false,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-        modifier = Modifier.padding(vertical = 8.dp).fillMaxWidth().weight(.25f)
+        modifier = Modifier.padding(vertical = 8.dp).fillMaxWidth()
     )
 }
 
@@ -331,14 +299,7 @@ fun Clock(timestamp: Long, onClose: (Long, Long) -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Calendar(initialTimestamp: Long, onClose: (Long?) -> Unit) {
-    val datePickerState = DatePickerState(locale = Locale.UK).apply {
-        selectedDateMillis = initialTimestamp.takeIf { it > -1 } ?: Instant.now().toEpochMilli()
-    }
-//    val currTime = currTime(initialTimestamp)
-//    fun onDismiss() {
-//        val hoursMinsOffset = (currTime.hour * 3600 + currTime.minute * 60) * 1000
-//        onClose(datePickerState.selectedDateMillis?.plus(hoursMinsOffset.toLong()))
-//    }
+    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialTimestamp)
     Column(
         modifier = Modifier
             .fillMaxHeight()
@@ -347,17 +308,12 @@ fun Calendar(initialTimestamp: Long, onClose: (Long?) -> Unit) {
     ) {
         DatePickerDialog(
             confirmButton = {
-                // Inject this from test
-//                Box(modifier = Modifier.testTag("datePickerConfirm").clickable { onDismiss() })
-                Button(onClick = {
-//                    onDismiss()
-//                    val hoursMinsOffset = (currTime.hour * 3600 + currTime.minute * 60) * 1000
-//                    onClose(datePickerState.selectedDateMillis?.plus(hoursMinsOffset.toLong()))
-                }) {
+                Button(
+                    onClick = { onClose(datePickerState.selectedDateMillis) }
+                ) {
                     Text("Done")
                 }
             },
-//            onDismissRequest = { onDismiss() }
             onDismissRequest = { onClose(datePickerState.selectedDateMillis) }
         ) {
             DatePicker(

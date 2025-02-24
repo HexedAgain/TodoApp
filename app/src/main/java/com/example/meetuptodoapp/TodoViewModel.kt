@@ -13,20 +13,22 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 class IdSupplier {
     fun id(): String = UUID.randomUUID().toString()
 }
 
+class TimeSupplier {
+    fun now(): Long = Instant.now().toEpochMilli()
+}
+
 class TodoEditor(
     val currentTodo: TodoItem?,
-    val isAdd: Boolean, // probably don't need
+    val timeSupplier: TimeSupplier
 ) {
     private val _id = MutableStateFlow(currentTodo?.id)
     val id = _id.asStateFlow()
@@ -70,21 +72,16 @@ class TodoEditor(
         _showTimePicker.value = false
     }
 
-    fun formatDate(timestamp: Long, isVerbose: Boolean = true): String {
-        val format = if (isVerbose) "EE, dd MMMM yyyy HH:mm" else "EE, dd/MM/yyyy"
-        return Instant
-            .ofEpochMilli(timestamp)
-            .atZone(ZoneId.of("GMT"))
-            .toLocalDateTime()
-            .format(DateTimeFormatter.ofPattern(format))
+    fun initialTimestamp(): Long {
+        return _timestamp.value.takeIf { it > -1L } ?: timeSupplier.now()
     }
 
     fun isValid(): Boolean {
         return title.value.isNotEmpty() && description.value.isNotEmpty() && timestamp.value > NO_TIMESTAMP
     }
 
-    fun renderTodo() {
-        // this should now communicate to viewmodel that we finished
+    fun buttonText(): String {
+        return "${ if (id.value == null) "Add" else "Update" } TODO"
     }
 
     companion object {
@@ -93,9 +90,15 @@ class TodoEditor(
 }
 
 class TodoViewModel(
+    // FIXME - this one is going to be problematic to test, I will want to change a value
+    // and I will then want to see that the todos got updated (which happens in collect)
+
+    // The mock for this will need to define data as a flow, and update will cause it to emit a new
+    // value
     private val todoStore: TodoStore,
-    private val repository: TodoRepository = TodoRepository(),
-    private val idSupplier: IdSupplier = IdSupplier()
+    private val repository: TodoRepository,
+    private val idSupplier: IdSupplier = IdSupplier(),
+    val timeSupplier: TimeSupplier = TimeSupplier()
 ): ViewModel() {
 
     sealed interface TodoAction {
@@ -114,96 +117,66 @@ class TodoViewModel(
         .map { todos -> todos.map { toUI(it) } }
         .stateIn(viewModelScope, SharingStarted.Lazily, listOf())
 
-    private val _showModal = MutableStateFlow(false)
-    val showModal = _showModal.asStateFlow()
+    private val _todoAction: MutableStateFlow<TodoAction> = MutableStateFlow(TodoAction.None)
+    val todoAction = _todoAction.asStateFlow()
 
-//    private val _activeTodo = MutableStateFlow(TodoItem.default())
-//    val activeTodo = _activeTodo.asStateFlow()
-
-    private var editIdx: Int? = null
-
-//    fun createTodoItem(): TodoItem {
-//        return TodoItem.default()
-//    }
-
-    // FIXME - probably want this to be the thing that drives modal visibility
-    //         if NONE we don't show modal, otherwise we show it
-    private var currentTodoAction: TodoAction = TodoAction.None
-
-    fun onTodoViewOrCreate(idx: Int?) {
-        editIdx = idx
-        if (idx == null) {
-            currentTodoAction = TodoAction.CreateTodo(TodoEditor(currentTodo = null, isAdd = true))
-        } else {
-            val todo = _todos.value[idx]
-            currentTodoAction = TodoAction.ViewTodo(todo)
-        }
-        _showModal.value = true
+    fun onViewTodo(idx: Int) {
+        val todo = _todos.value[idx]
+        _todoAction.value = TodoAction.ViewTodo(todo)
     }
 
-    fun createTodo() {
-        currentTodoAction = TodoAction.CreateTodo(TodoEditor(currentTodo = null, isAdd = true))
-        _showModal.value = true
+    fun onCreateTodo() {
+        _todoAction.value = TodoAction.CreateTodo(
+            todoEditor = TodoEditor(currentTodo = null, timeSupplier = timeSupplier)
+        )
     }
 
-    fun closeModal(todoEditor: TodoEditor? = null) {
-        _showModal.value = false
-        editIdx = null
-        todoEditor?.run {
-            val todo = TodoItem(
-                id = id.value ?: idSupplier.id(),
-                title = title.value ,
-                description = description.value,
-                completionTime = timestamp.value
-            )
-            val idx = _todos.value.indexOf(todo)
-            if (idx >= 0) {
-                val allTodos = _todos.value.toMutableList()
-                allTodos[idx] = todo
-                viewModelScope.launch {
-                    todoStore.updateData { it.copy(todos = allTodos) }
-                }
-            } else {
-                viewModelScope.launch {
-                    todoStore.updateData { it.copy(todos = it.todos + todo) }
-                }
-            }
+    fun onTodoDone(todoEditor: TodoEditor? = null) {
+        todoEditor?.let {
+            commitTodo(it)
+        } ?: run {
+            _todoAction.value = TodoAction.None
         }
     }
 
-    fun requestModal() {
-        _showModal.value = true
+
+    fun onUpdateTodo(todo: TodoItem) {
+        _todoAction.value = TodoAction.UpdateTodo(
+            todoEditor = TodoEditor(currentTodo = todo, timeSupplier = timeSupplier)
+        )
     }
 
-    fun currentTodoItem(): TodoItem? {
-        return null
-    }
-
-    fun currentTodoAction(): TodoAction {
-        return currentTodoAction
-    }
-
-    fun addTodo() {
-
-    }
-
-    fun updateTodo(todo: TodoItem) {
-        currentTodoAction = TodoAction.UpdateTodo(todoEditor = TodoEditor(currentTodo = todo, isAdd = false))
-    }
-
-//    fun getEditor(todo: TodoItem): TodoEditor {
-//        return TodoEditor(todo)
-//    }
-
-    fun deleteTodo(todo: TodoItem) {
+    fun onDeleteTodo(todo: TodoItem) {
         viewModelScope.launch {
+            val remainingTodos = _todos.value.filter { it.id != todo.id }
             todoStore.updateData { todos ->
-                todos.copy(
-                    todos = todos.todos.filter { it.id != todo.id }
-                )
+                todos.copy(todos = remainingTodos)
             }
         }
-        _showModal.value = false
+        _todoAction.value = TodoAction.None
+    }
+
+    private fun commitTodo(todoEditor: TodoEditor) {
+        val todo = TodoItem(
+            id = todoEditor.id.value ?: idSupplier.id(),
+            title = todoEditor.title.value ,
+            description = todoEditor.description.value,
+            completionTime = todoEditor.timestamp.value
+        )
+        val idx = _todos.value.indexOfFirst { it.id == todo.id }
+        val newTodos: List<TodoItem>
+        if (idx >= 0) {
+            newTodos = _todos.value.toMutableList()
+            newTodos[idx] = todo
+        } else {
+            newTodos = _todos.value + todo
+        }
+        viewModelScope.launch {
+            repository.logTodoStats(todo) {
+                _todoAction.value = TodoAction.None
+            }
+            todoStore.updateData { it.copy(todos = newTodos) }
+        }
     }
 
     private fun collectTodos() {
