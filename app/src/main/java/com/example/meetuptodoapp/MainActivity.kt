@@ -1,8 +1,6 @@
 package com.example.meetuptodoapp
 
-import android.annotation.SuppressLint
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -17,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -31,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,34 +37,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.Role.Companion.Button
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.core.DataStore
-import androidx.lifecycle.lifecycleScope
-import androidx.work.ExistingWorkPolicy
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
 import com.example.meetuptodoapp.api.TodoRepository
 import com.example.meetuptodoapp.domain.model.TodoItem
 import com.example.meetuptodoapp.domain.model.TodoStore
 import com.example.meetuptodoapp.domain.model.Todos
 import com.example.meetuptodoapp.ui.model.UITodo
-import com.example.meetuptodoapp.domain.work.TodosWorker
 import com.example.meetuptodoapp.ui.theme.MeetupTODOAppTheme
-import com.example.meetuptodoapp.utils.toUI
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
-import java.time.Duration
+import org.koin.androidx.viewmodel.ext.android.viewModel
 import java.time.Instant
 import java.util.UUID
 
@@ -87,25 +71,28 @@ class MainActivity: ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val viewModel: TodoViewModel by viewModel()
         enableEdgeToEdge()
         setContent {
-            var showModal by remember { mutableStateOf(false) }
-            var editIdx by remember { mutableStateOf<Int?>(null) }
-            fun onModal(idx: Int?) {
-                editIdx = idx
-                showModal = idx != null
-            }
+            val showModal by viewModel.showModal.collectAsState()
+            val todos by viewModel.todos.collectAsState()
             MeetupTODOAppTheme {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
-                    floatingActionButton = { TodoFAB { showModal = true } }
+                    floatingActionButton = { TodoFAB { viewModel.createTodo() } }
                 ) { innerPadding ->
                     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
                     Column(modifier = Modifier.padding(innerPadding)) {
-                        TodoScreen(::onModal, lifecycleScope)
+                        TodoScreen(todos = todos, onCreateOrEdit = viewModel::onTodoViewOrCreate)
 
                         if (showModal) {
-                            ModalUpdateTodo(bottomSheetState, editIdx) { onModal(null )}
+                            ModalUpdateTodo(
+                                bottomSheetState = bottomSheetState,
+                                todoAction = viewModel.currentTodoAction(),
+                                onDelete = viewModel::deleteTodo,
+                                onDone = viewModel::closeModal,
+                                onUpdate = viewModel::updateTodo
+                            )
                         }
                     }
                 }
@@ -113,92 +100,70 @@ class MainActivity: ComponentActivity() {
         }
     }
 
-    @Composable
-    fun deleteTodo(id: String, onFinish: () -> Unit) {
-        LaunchedEffect(null) {
-            todoDataStore.updateData { todos ->
-                todos.copy(
-                    todos = todos.todos.filter { it.id != id }
-                )
-            }
-            onFinish()
-        }
-    }
+//    @Composable
+////    fun commitTodo(title: String, description: String, timestamp: Long, id: String?, onFinish: () -> Unit) {
+//    fun commitTodo(title: String, description: String, timestamp: Long, currentTodoItem: TodoItem?, onFinish: () -> Unit) {
+//        LaunchedEffect(null) {
+//            val todo = if (currentTodoItem == null) {
+//                addTodo(todoDataStore, title, description, timestamp)
+//            } else {
+//                updateTodo(todoDataStore, title, description, timestamp, currentTodoItem)
+//            }
+//            repo.logTodoStats(todo) {
+//                onFinish()
+//            }
+//        }
+//    }
+
+//    suspend fun addTodo(todoStore: DataStore<Todos>, title: String, description: String, timestamp: Long): TodoItem {
+//        val thisTodo = TodoItem(
+//            id = UUID.randomUUID().toString(),
+//            title = title,
+//            description = description,
+//            timestamp = Instant.now().toEpochMilli(),
+//            completionTime = timestamp
+//        )
+//        todoStore.updateData { todos ->
+//            todos.copy(todos = todos.todos + thisTodo)
+//        }
+//        return thisTodo
+//    }
+
+//    suspend fun updateTodo(
+//        todoStore: DataStore<Todos>,
+//        title: String,
+//        description: String,
+//        completionTime: Long,
+//        currentTodoItem: TodoItem,
+////        id: String,
+//        completedTime: Long = Long.MAX_VALUE
+//    ): TodoItem {
+//        var newTodo: TodoItem = TodoItem.default()
+//        todoStore.updateData { todos ->
+////            val todoItem = todos.todos.find { it.id == id }
+//            val todoIdx = todos.todos.indexOf(currentTodoItem)
+//            newTodo = TodoItem(
+//                title = title,
+//                description = description,
+//                timestamp = Instant.now().toEpochMilli(),
+//                completionTime = completionTime,
+//                completedTime = completedTime
+//            )
+//            val allTodos = todos.todos.map { it } as MutableList<TodoItem>
+//            allTodos[todoIdx] = newTodo
+//            todos.copy(todos = allTodos)
+//        }
+//        return newTodo
+//    }
 
     @Composable
-    fun commitTodo(title: String, description: String, timestamp: Long, id: String?, onFinish: () -> Unit) {
-        LaunchedEffect(null) {
-            val todo = if (id == null) {
-                addTodo(todoDataStore, title, description, timestamp)
-            } else {
-                updateTodo(todoDataStore, title, description, timestamp, id)
-            }
-            repo.logTodoStats(todo) {
-                onFinish()
-            }
-        }
-    }
-
-    suspend fun addTodo(todoStore: DataStore<Todos>, title: String, description: String, timestamp: Long): TodoItem {
-        val thisTodo = TodoItem(
-            id = UUID.randomUUID().toString(),
-            title = title,
-            description = description,
-            timestamp = Instant.now().toEpochMilli(),
-            completionTime = timestamp
-        )
-        todoStore.updateData { todos ->
-            todos.copy(todos = todos.todos + thisTodo)
-        }
-        return thisTodo
-    }
-
-    suspend fun updateTodo(
-        todoStore: DataStore<Todos>,
-        title: String,
-        description: String,
-        completionTime: Long,
-        id: String,
-        completedTime: Long = Long.MAX_VALUE
-    ): TodoItem {
-        var newTodo: TodoItem = TodoItem.default()
-        todoStore.updateData { todos ->
-            val todoItem = todos.todos.find { it.id == id }
-            val todoIdx = todos.todos.indexOf(todoItem)
-            newTodo = TodoItem(
-                title = title,
-                description = description,
-                timestamp = Instant.now().toEpochMilli(),
-                completionTime = completionTime,
-                completedTime = completedTime
-            )
-            val allTodos = todos.todos.map { it } as MutableList<TodoItem>
-            allTodos[todoIdx] = newTodo
-            todos.copy(todos = allTodos)
-        }
-        return newTodo
-    }
-
-    @SuppressLint("CoroutineCreationDuringComposition")
-    @Composable
-    fun TodoScreen(onEdit: (Int) -> Unit, coroutineScope: CoroutineScope) {
-        val context = LocalContext.current
-        var todoList: List<UITodo> by remember { mutableStateOf(listOf()) }
-        coroutineScope.launch {
-            println("coroutine scope launched")
-            todoDataStore.data.distinctUntilChanged().map { it.toUI() }.collect { latestTodos ->
-                todoList = latestTodos
-            }
-        }.invokeOnCompletion {
-            println("completed")
-        }
+    fun TodoScreen(todos: List<UITodo>, onCreateOrEdit: (Int) -> Unit) {
         var showDoneTodos by remember { mutableStateOf(false) }
         Header(showDoneTodos) {
             showDoneTodos = it
         }
-        TodoList(todoList, showDoneTodos) {
-            onEdit(it)
-        }
+        // So far, I only know that I'm "viewing" a todo
+        TodoList(todos = todos, showDoneTodos = showDoneTodos, onClick = { onCreateOrEdit(it) })
     }
 
     @Composable
@@ -234,7 +199,14 @@ class MainActivity: ComponentActivity() {
         finishedId?.let {
             LaunchedEffect(null) {
                 val todo = todoDataStore.data.stateIn(scope).value.todos.first { it.id == finishedId }
-                updateTodo(todoDataStore, todo.title, todo.description, todo.completionTime, todo.id, Instant.now().toEpochMilli())
+//                updateTodo(
+//                    todoDataStore,
+//                    todo.title,
+//                    todo.description,
+//                    todo.completionTime,
+//                    todo,
+//                    Instant.now().toEpochMilli()
+//                )
             }
         }
         LazyColumn {
@@ -288,39 +260,40 @@ class MainActivity: ComponentActivity() {
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    fun ModalUpdateTodo(bottomSheetState: SheetState, todoIdx: Int?, onClose: () -> Unit) {
+//    fun ModalUpdateTodo(bottomSheetState: SheetState, todoIdx: Int?, onClose: () -> Unit) {
+    fun ModalUpdateTodo(
+        bottomSheetState: SheetState,
+        todoAction: TodoViewModel.TodoAction,
+        onUpdate: (TodoItem) -> Unit,
+        onDelete: (TodoItem) -> Unit,
+        onDone: (TodoEditor?) -> Unit
+    ) {
         LaunchedEffect(null) { bottomSheetState.expand() }
         ModalBottomSheet(
             sheetState = bottomSheetState,
             onDismissRequest = {
-                onClose()
+                onDone(null)
             }
         ) {
             AddTodoScreen(
-                todoIdx = todoIdx,
-                onUpdate = { title, description, completionDate, id ->
-                    commitTodo(title, description, completionDate, id) { onClose() }
+                todoAction = todoAction,
+                onDelete = onDelete,
+                onDone = { todoEditor ->
+                    onDone(todoEditor)
                 },
-                onDelete = {
-                    deleteTodo(it) { onClose() }
-                },
-                todoFlow = todoDataStore.data
+                onUpdate = { todoItem ->
+                    onUpdate(todoItem)
+                }
+//                todoIdx = todoIdx,
+//                currentTodoItem = activeTodoItem,
+//                onUpdate = { title, description, completionDate, id ->
+////                    commitTodo(title, description, completionDate, activeTodoItem) { onClose() }
+//                },
+//                onDelete = {
+////                    deleteTodo(it) { onClose() }
+//                },
+//                todoFlow = todoDataStore.data
             )
         }
-    }
-}
-
-//@Composable
-//fun getTodoStore(): DataStore<Todos> {
-//    return (LocalContext.current.applicationContext as TodoApplication).todoDataStore
-//}
-
-
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    MeetupTODOAppTheme {
-//        AllTodos(Todos(todos = listOf()))
     }
 }

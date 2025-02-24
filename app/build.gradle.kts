@@ -79,6 +79,7 @@ dependencies {
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.serialization)
     implementation(libs.ktor.client.logging)
+    implementation(libs.koin)
 //    implementation(libs.firebase.messaging)
     implementation(libs.androidx.work.runtime)
     testImplementation(libs.junit)

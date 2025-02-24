@@ -7,8 +7,8 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 
 class TodoRepository(
+    private val todoClient: TodoClient = TodoClient()
 ) {
-    private val todoClient = TodoClient()
 //    private val client: Ktor
     suspend fun logTodoStats(todoItem: TodoItem, onSuccess: () -> Unit) {
         todoClient.post(todoItem, "https://httpbin.org/anything")
