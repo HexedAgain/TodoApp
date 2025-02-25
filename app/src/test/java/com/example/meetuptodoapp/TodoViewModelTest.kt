@@ -8,19 +8,20 @@ import com.example.meetuptodoapp.api.TodoRepository
 import com.example.meetuptodoapp.domain.model.TodoItem
 import com.example.meetuptodoapp.domain.model.Todos
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import junit.framework.TestCase.assertEquals
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.Before
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class TodoViewModelTest {
 
     private lateinit var viewModel: TodoViewModel
@@ -28,7 +29,7 @@ class TodoViewModelTest {
     private val mockTodoStorage: TodoStorage = mockk()
     private val mockRepository: TodoRepository = mockk()
     private val mockTimeSupplier: TimeSupplier = mockk()
-    @OptIn(ExperimentalCoroutinesApi::class)
+    private val mockIdSupplier: IdSupplier = mockk()
     private val testDispatcher = UnconfinedTestDispatcher()
     private val dummyTodo = TodoItem(
         id = "some-id",
@@ -37,8 +38,8 @@ class TodoViewModelTest {
     )
     private val anotherDummyTodo = dummyTodo.copy(id = "some-other-todo")
     private val completedTodo = dummyTodo.copy(completedTime = TIME_NOW - 1, id = "some-completed-id")
+    private val uninitialisedForm = TodoForm(currentTodo = null, timeSupplier = mockTimeSupplier)
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
@@ -51,6 +52,7 @@ class TodoViewModelTest {
         }
         coEvery { mockRepository.logTodoStats(any(), any()) }.answers { }
         every { mockTimeSupplier.now() }.returns(TIME_NOW)
+        every { mockIdSupplier.id() }.returns("some-id")
 
         reInitialiseViewModel()
     }
@@ -59,7 +61,8 @@ class TodoViewModelTest {
         viewModel = TodoViewModel(
             todoStorage = mockTodoStorage,
             repository = mockRepository,
-            timeSupplier = mockTimeSupplier
+            timeSupplier = mockTimeSupplier,
+            idSupplier = mockIdSupplier
         )
     }
 
@@ -141,26 +144,43 @@ class TodoViewModelTest {
     }
 
     @Test
-    fun `onTodoDone, if action is create, then it publishes new todo state appended with the created todo`() = runTest {
-        val todoForm = TodoForm()
-        viewModel.onTodoDone(TodoForm(dummyTodo, mockTimeSupplier))
+    fun `onTodoDone, if todo does not exist, then it publishes new todo state appended with the created todo`() = runTest {
+        every { mockIdSupplier.id() }.returns("some-created-id")
+        val newTodoForm = uninitialisedForm.apply {
+            updateTitle("some-title")
+            updateDescription("some-description")
+            updateCompletedByDate(12345L)
+        }
 
-        assertEquals(listOf(dummyTodo), viewModel.todos.value)
+        viewModel.onTodoDone(newTodoForm)
+
+        with (viewModel.todos.value.first()) {
+            assertEquals("some-created-id", id)
+            assertEquals("some-title", title)
+            assertEquals("some-description", description)
+            assertEquals(12345, completionTime)
+        }
     }
 
     @Test
-    fun `onTodoDone, if action is edit, then it publishes todo state replacing the selected todo`() = runTest {
+    fun `onTodoDone, if todo exists, then it publishes todo state replacing the selected todo`() = runTest {
+        dummyFlow.value = Todos(todos = listOf(dummyTodo))
+        val existingTodoForm = TodoForm(dummyTodo, mockTimeSupplier).apply {
+            updateDescription("some-updated-description")
+        }
 
+        viewModel.onTodoDone(existingTodoForm)
+
+        assertEquals(listOf(dummyTodo.copy(description = "some-updated-description")), viewModel.todos.value)
     }
 
     @Test
-    fun `onTodoDone, if action is edit, then it logs the todo`() = runTest {
+    fun `onTodoDone, it logs the todo`() = runTest {
+        val existingTodoForm = TodoForm(dummyTodo, mockTimeSupplier)
 
-    }
+        viewModel.onTodoDone(existingTodoForm)
 
-    @Test
-    fun `onTodoDone, if action is create, then it logs the todo`() = runTest {
-
+        coVerify { mockRepository.logTodoStats(dummyTodo, any()) }
     }
 
     companion object {

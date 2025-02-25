@@ -30,13 +30,13 @@ class TodoForm(
     val currentTodo: TodoItem?,
     val timeSupplier: TimeSupplier,
     currentId: String? = currentTodo?.id,
-    private val _title: MutableStateFlow<String> = MutableStateFlow(currentTodo?.title ?: ""),
-    private val _description: MutableStateFlow<String> = MutableStateFlow(currentTodo?.description ?: ""),
-    private val _timestamp: MutableStateFlow<Long> = MutableStateFlow(currentTodo?.completionTime ?: NO_TIMESTAMP)
 ) {
     val id = currentId
+    private val _title = MutableStateFlow(currentTodo?.title ?: "")
     val title = _title.asStateFlow()
+    private val _description = MutableStateFlow(currentTodo?.description ?: "")
     val description = _description.asStateFlow()
+    private val _timestamp = MutableStateFlow(currentTodo?.completionTime ?: NO_TIMESTAMP)
     val timestamp = _timestamp.asStateFlow()
 
     private val _showDatePicker = MutableStateFlow(false)
