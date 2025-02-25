@@ -1,5 +1,6 @@
 package com.example.meetuptodoapp.di
 
+import com.example.meetuptodoapp.TodoStorage
 import com.example.meetuptodoapp.TodoViewModel
 import com.example.meetuptodoapp.api.TodoClient
 import com.example.meetuptodoapp.api.TodoClientImpl
@@ -20,6 +21,10 @@ val appModule = module {
                 println("test")
             }
         }
+    }
+
+    factory {
+        TodoStorage(get())
     }
 
     single {

@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.meetuptodoapp.api.TodoRepository
 import com.example.meetuptodoapp.domain.model.TodoItem
-import com.example.meetuptodoapp.domain.model.TodoStore
 import com.example.meetuptodoapp.ui.model.UITodo
 import com.example.meetuptodoapp.utils.formatDate
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
@@ -28,15 +28,15 @@ class TimeSupplier {
 
 class TodoForm(
     val currentTodo: TodoItem?,
-    val timeSupplier: TimeSupplier
+    val timeSupplier: TimeSupplier,
+    currentId: String? = currentTodo?.id,
+    private val _title: MutableStateFlow<String> = MutableStateFlow(currentTodo?.title ?: ""),
+    private val _description: MutableStateFlow<String> = MutableStateFlow(currentTodo?.description ?: ""),
+    private val _timestamp: MutableStateFlow<Long> = MutableStateFlow(currentTodo?.completionTime ?: NO_TIMESTAMP)
 ) {
-    private val _id = MutableStateFlow(currentTodo?.id)
-    val id = _id.asStateFlow()
-    private val _title = MutableStateFlow(currentTodo?.title ?: "")
+    val id = currentId
     val title = _title.asStateFlow()
-    private val _description = MutableStateFlow(currentTodo?.description ?: "")
     val description = _description.asStateFlow()
-    private val _timestamp = MutableStateFlow(currentTodo?.completionTime ?: NO_TIMESTAMP)
     val timestamp = _timestamp.asStateFlow()
 
     private val _showDatePicker = MutableStateFlow(false)
@@ -81,7 +81,7 @@ class TodoForm(
     }
 
     fun buttonText(): String {
-        return "${ if (id.value == null) "Add" else "Update" } TODO"
+        return "${ if (id == null) "Add" else "Update" } TODO"
     }
 
     companion object {
@@ -90,11 +90,10 @@ class TodoForm(
 }
 
 class TodoViewModel(
-    private val todoStore: TodoStore,
+    private val todoStorage: TodoStorage,
     private val repository: TodoRepository,
     private val idSupplier: IdSupplier = IdSupplier(),
     val timeSupplier: TimeSupplier = TimeSupplier(),
-    val sharingStarted: SharingStarted = SharingStarted.Lazily
 ): ViewModel() {
 
     sealed interface TodoAction {
@@ -108,9 +107,12 @@ class TodoViewModel(
     // Is there any way to defer this mapping till last minute?
     // Do I want the viewmodel to be doing this?
     // possibly want toUI to return null if crap data, and then filter them out
-    val todos: StateFlow<List<UITodo>> = _todos
-        .map { todos -> todos.map { toUI(it) } }
-        .stateIn(viewModelScope, sharingStarted, listOf())
+//    val todos: StateFlow<List<UITodo>> = _todos
+//        .map { todos -> todos.map { toUI(it) } }
+//        .stateIn(viewModelScope, sharingStarted, listOf())
+    val todos: StateFlow<List<TodoItem>> = _todos
+        .map { todos -> onlyVisibleTodos(todos) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, listOf())
 
     init {
         collectTodos()
@@ -119,9 +121,9 @@ class TodoViewModel(
 
     private val _todoAction: MutableStateFlow<TodoAction> = MutableStateFlow(TodoAction.None)
     val todoAction = _todoAction.asStateFlow()
+    private var showCompleted = false
 
-    fun onViewTodo(idx: Int) {
-        val todo = _todos.value[idx]
+    fun onViewTodo(todo: TodoItem) {
         _todoAction.value = TodoAction.ViewTodo(todo)
     }
 
@@ -134,9 +136,7 @@ class TodoViewModel(
     fun onDeleteTodo(todo: TodoItem) {
         viewModelScope.launch {
             val remainingTodos = _todos.value.filter { it.id != todo.id }
-            todoStore.updateData { todos ->
-                todos.copy(todos = remainingTodos)
-            }
+            todoStorage.write(remainingTodos)
         }
         _todoAction.value = TodoAction.None
     }
@@ -155,9 +155,29 @@ class TodoViewModel(
         }
     }
 
+    fun isCompleted(todo: TodoItem): Boolean {
+        return timeSupplier.now() > todo.completedTime
+    }
+
+    fun toggleShowCompleted() {
+        showCompleted = !showCompleted
+        val newTodos = _todos.value
+        // Bit dodgy but need to refresh _todos
+        _todos.update { listOf() }
+        _todos.update { newTodos }
+    }
+
+    fun shouldShowTodo(todo: TodoItem): Boolean {
+        return showCompleted || !isCompleted(todo)
+    }
+
+    private fun onlyVisibleTodos(input: List<TodoItem>): List<TodoItem> {
+        return input.filter { shouldShowTodo(it) }
+    }
+
     private fun commitTodo(todoForm: TodoForm) {
         val todo = TodoItem(
-            id = todoForm.id.value ?: idSupplier.id(),
+            id = todoForm.id ?: idSupplier.id(),
             title = todoForm.title.value ,
             description = todoForm.description.value,
             completionTime = todoForm.timestamp.value
@@ -174,13 +194,13 @@ class TodoViewModel(
             repository.logTodoStats(todo) {
                 _todoAction.value = TodoAction.None
             }
-            todoStore.updateData { it.copy(todos = newTodos) }
+            todoStorage.write(newTodos)
         }
     }
 
     private fun collectTodos() {
         viewModelScope.launch {
-            todoStore.data.collect {
+            todoStorage.readAsFlow().collect {
                 _todos.value = it.todos
             }
         }

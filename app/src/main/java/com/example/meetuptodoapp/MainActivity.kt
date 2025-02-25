@@ -43,10 +43,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.meetuptodoapp.TodoViewModel.TodoAction
 import com.example.meetuptodoapp.domain.model.TodoItem
-import com.example.meetuptodoapp.ui.model.UITodo
 import com.example.meetuptodoapp.ui.theme.MeetupTODOAppTheme
 import org.koin.androidx.viewmodel.ext.android.viewModel
-import java.time.Instant
 
 class MainActivity: ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
@@ -65,7 +63,11 @@ class MainActivity: ComponentActivity() {
                 ) { innerPadding ->
                     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
                     Column(modifier = Modifier.padding(innerPadding)) {
-                        TodoScreen(todos = todos, onViewTodo = viewModel::onViewTodo)
+                        TodoScreen(
+                            todos = todos,
+                            isCompleted = viewModel::isCompleted,
+                            onViewTodo = viewModel::onViewTodo
+                        )
 
                         when (todoAction) {
                             is TodoAction.None -> {}
@@ -87,12 +89,12 @@ class MainActivity: ComponentActivity() {
 }
 
 @Composable
-fun TodoScreen(todos: List<UITodo>, onViewTodo: (Int) -> Unit) {
+fun TodoScreen(todos: List<TodoItem>, isCompleted: (TodoItem) -> Boolean, onViewTodo: (TodoItem) -> Unit) {
     var showDoneTodos by remember { mutableStateOf(false) }
     Header(showDoneTodos) {
         showDoneTodos = it
     }
-    TodoList(todos = todos, onClick = { onViewTodo(it) })
+    TodoList(todos = todos, isCompleted = isCompleted, onClick = { onViewTodo(it) })
 }
 
 @Composable
@@ -123,28 +125,28 @@ private fun Header(currChecked: Boolean, onChecked: (Boolean) -> Unit) {
 
 // TODO - viewmodel should be filtering the completed ones if necessary
 @Composable
-private fun TodoList(todos: List<UITodo>, onClick: (Int) -> Unit) {
+private fun TodoList(todos: List<TodoItem>, isCompleted: (TodoItem) -> Boolean, onClick: (TodoItem) -> Unit) {
     LazyColumn {
         items(count = todos.size) { idx ->
-            val item = todos[idx]
+            val todo = todos[idx]
             Card(
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                 modifier = Modifier
                     .fillMaxWidth().fillMaxHeight()
                     .padding(vertical = 8.dp, horizontal = 16.dp)
-                    .clickable { onClick(idx) }
+                    .clickable { onClick(todo) }
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.End
                 ) {
                     Column(modifier = Modifier.padding(16.dp).fillMaxWidth(.8f)) {
-                        Text(item.title, style = TextStyle().copy(fontWeight = FontWeight.Bold, fontSize = 16.sp))
-                        Text(text = item.description, modifier = Modifier)
+                        Text(todo.title, style = TextStyle().copy(fontWeight = FontWeight.Bold, fontSize = 16.sp))
+                        Text(text = todo.description, modifier = Modifier)
                     }
                     Checkbox(
                         onCheckedChange = { },
-                        checked = Instant.now().toEpochMilli() > item.completedTimestamp
+                        checked = isCompleted(todo)
                     )
                 }
             }
