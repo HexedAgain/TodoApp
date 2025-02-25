@@ -47,54 +47,53 @@ import com.example.meetuptodoapp.ui.theme.MeetupTODOAppTheme
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity: ComponentActivity() {
-    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val viewModel: TodoViewModel by viewModel()
         enableEdgeToEdge()
         setContent {
-            val todoAction by viewModel.todoAction.collectAsState()
-            val todos by viewModel.todos.collectAsState()
-            // TODO move this to another composable so I can inject own viewmodel
-            MeetupTODOAppTheme {
-                Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                    floatingActionButton = { TodoFAB { viewModel.onCreateTodo() } }
-                ) { innerPadding ->
-                    val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
-                    Column(modifier = Modifier.padding(innerPadding)) {
-                        TodoScreen(
-                            todos = todos,
-                            isCompleted = viewModel::isCompleted,
-                            onViewTodo = viewModel::onViewTodo
-                        )
+            TodoHome(viewModel)
+        }
+    }
+}
 
-                        when (todoAction) {
-                            is TodoAction.None -> {}
-                            else -> {
-                                ModalUpdateTodo(
-                                    bottomSheetState = bottomSheetState,
-                                    todoAction = todoAction,
-                                    onDelete = viewModel::onDeleteTodo,
-                                    onDone = viewModel::onTodoDone,
-                                    onUpdate = viewModel::onUpdateTodo
-                                )
-                            }
-                        }
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TodoHome(viewModel: TodoViewModel) {
+    val todoAction by viewModel.todoAction.collectAsState()
+    val todos by viewModel.todos.collectAsState()
+    MeetupTODOAppTheme {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            floatingActionButton = { TodoFAB { viewModel.onCreateTodo() } }
+        ) { innerPadding ->
+            val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+            var showDoneTodos by remember { mutableStateOf(false) }
+            Column(modifier = Modifier.padding(innerPadding)) {
+                Header(showDoneTodos) {
+                    showDoneTodos = it
+                }
+                TodoList(
+                    todos = todos,
+                    isCompleted = viewModel::isCompleted,
+                    onClick = viewModel::onViewTodo
+                )
+
+                when (todoAction) {
+                    is TodoAction.None -> {}
+                    else -> {
+                        ModalUpdateTodo(
+                            bottomSheetState = bottomSheetState,
+                            todoAction = todoAction,
+                            onDelete = viewModel::onDeleteTodo,
+                            onDone = viewModel::onTodoDone,
+                            onUpdate = viewModel::onUpdateTodo
+                        )
                     }
                 }
             }
         }
     }
-}
-
-@Composable
-fun TodoScreen(todos: List<TodoItem>, isCompleted: (TodoItem) -> Boolean, onViewTodo: (TodoItem) -> Unit) {
-    var showDoneTodos by remember { mutableStateOf(false) }
-    Header(showDoneTodos) {
-        showDoneTodos = it
-    }
-    TodoList(todos = todos, isCompleted = isCompleted, onClick = { onViewTodo(it) })
 }
 
 @Composable
