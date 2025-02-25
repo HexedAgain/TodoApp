@@ -175,7 +175,7 @@ fun ModalUpdateTodo(
     todoAction: TodoAction,
     onUpdate: (TodoItem) -> Unit,
     onDelete: (TodoItem) -> Unit,
-    onDone: (TodoEditor?) -> Unit
+    onDone: (TodoForm?) -> Unit
 ) {
     LaunchedEffect(null) { bottomSheetState.expand() }
     ModalBottomSheet(

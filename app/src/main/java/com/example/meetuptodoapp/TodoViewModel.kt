@@ -26,7 +26,7 @@ class TimeSupplier {
     fun now(): Long = Instant.now().toEpochMilli()
 }
 
-class TodoEditor(
+class TodoForm(
     val currentTodo: TodoItem?,
     val timeSupplier: TimeSupplier
 ) {
@@ -90,32 +90,32 @@ class TodoEditor(
 }
 
 class TodoViewModel(
-    // FIXME - this one is going to be problematic to test, I will want to change a value
-    // and I will then want to see that the todos got updated (which happens in collect)
-
-    // The mock for this will need to define data as a flow, and update will cause it to emit a new
-    // value
     private val todoStore: TodoStore,
     private val repository: TodoRepository,
     private val idSupplier: IdSupplier = IdSupplier(),
-    val timeSupplier: TimeSupplier = TimeSupplier()
+    val timeSupplier: TimeSupplier = TimeSupplier(),
+    val sharingStarted: SharingStarted = SharingStarted.Lazily
 ): ViewModel() {
 
     sealed interface TodoAction {
         class ViewTodo(val todo: TodoItem): TodoAction
-        class UpdateTodo(val todoEditor: TodoEditor): TodoAction
-        class CreateTodo(val todoEditor: TodoEditor): TodoAction
+        class UpdateTodo(val todoForm: TodoForm): TodoAction
+        class CreateTodo(val todoForm: TodoForm): TodoAction
         data object None: TodoAction
     }
+
+    private val _todos: MutableStateFlow<List<TodoItem>> = MutableStateFlow(listOf())
+    // Is there any way to defer this mapping till last minute?
+    // Do I want the viewmodel to be doing this?
+    // possibly want toUI to return null if crap data, and then filter them out
+    val todos: StateFlow<List<UITodo>> = _todos
+        .map { todos -> todos.map { toUI(it) } }
+        .stateIn(viewModelScope, sharingStarted, listOf())
 
     init {
         collectTodos()
     }
 
-    private val _todos: MutableStateFlow<List<TodoItem>> = MutableStateFlow(listOf())
-    val todos: StateFlow<List<UITodo>> = _todos
-        .map { todos -> todos.map { toUI(it) } }
-        .stateIn(viewModelScope, SharingStarted.Lazily, listOf())
 
     private val _todoAction: MutableStateFlow<TodoAction> = MutableStateFlow(TodoAction.None)
     val todoAction = _todoAction.asStateFlow()
@@ -127,22 +127,7 @@ class TodoViewModel(
 
     fun onCreateTodo() {
         _todoAction.value = TodoAction.CreateTodo(
-            todoEditor = TodoEditor(currentTodo = null, timeSupplier = timeSupplier)
-        )
-    }
-
-    fun onTodoDone(todoEditor: TodoEditor? = null) {
-        todoEditor?.let {
-            commitTodo(it)
-        } ?: run {
-            _todoAction.value = TodoAction.None
-        }
-    }
-
-
-    fun onUpdateTodo(todo: TodoItem) {
-        _todoAction.value = TodoAction.UpdateTodo(
-            todoEditor = TodoEditor(currentTodo = todo, timeSupplier = timeSupplier)
+            todoForm = TodoForm(currentTodo = null, timeSupplier = timeSupplier)
         )
     }
 
@@ -156,12 +141,26 @@ class TodoViewModel(
         _todoAction.value = TodoAction.None
     }
 
-    private fun commitTodo(todoEditor: TodoEditor) {
+    fun onUpdateTodo(todo: TodoItem) {
+        _todoAction.value = TodoAction.UpdateTodo(
+            todoForm = TodoForm(currentTodo = todo, timeSupplier = timeSupplier)
+        )
+    }
+
+    fun onTodoDone(todoForm: TodoForm? = null) {
+        todoForm?.let {
+            commitTodo(it)
+        } ?: run {
+            _todoAction.value = TodoAction.None
+        }
+    }
+
+    private fun commitTodo(todoForm: TodoForm) {
         val todo = TodoItem(
-            id = todoEditor.id.value ?: idSupplier.id(),
-            title = todoEditor.title.value ,
-            description = todoEditor.description.value,
-            completionTime = todoEditor.timestamp.value
+            id = todoForm.id.value ?: idSupplier.id(),
+            title = todoForm.title.value ,
+            description = todoForm.description.value,
+            completionTime = todoForm.timestamp.value
         )
         val idx = _todos.value.indexOfFirst { it.id == todo.id }
         val newTodos: List<TodoItem>

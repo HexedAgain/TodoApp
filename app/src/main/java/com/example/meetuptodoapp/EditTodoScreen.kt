@@ -62,7 +62,7 @@ fun AddTodoScreen(
     todoAction: TodoAction,
     onUpdate: (TodoItem) -> Unit,
     onDelete: (TodoItem) -> Unit,
-    onDone: @Composable (TodoEditor) -> Unit
+    onDone: @Composable (TodoForm) -> Unit
 ) {
     Box(
         modifier = Modifier.padding(16.dp),
@@ -72,10 +72,10 @@ fun AddTodoScreen(
                 ViewTodo(todoAction.todo, onDelete = onDelete, onUpdate = onUpdate)
             }
             is TodoAction.UpdateTodo -> {
-                EditTodo(todoEditor = todoAction.todoEditor, onDone = onDone)
+                EditTodo(todoForm = todoAction.todoForm, onDone = onDone)
             }
             is TodoAction.CreateTodo -> {
-                EditTodo(todoEditor = todoAction.todoEditor, onDone = onDone)
+                EditTodo(todoForm = todoAction.todoForm, onDone = onDone)
             }
 
             else -> {}
@@ -85,35 +85,35 @@ fun AddTodoScreen(
 
 @Composable
 fun EditTodo(
-    todoEditor: TodoEditor,
-    onDone: @Composable (TodoEditor) -> Unit
+    todoForm: TodoForm,
+    onDone: @Composable (TodoForm) -> Unit
 ) {
     // Interesting bug here I had mixed up title / description
-    val title by todoEditor.title.collectAsState()
-    val description by todoEditor.description.collectAsState()
-    val timestamp by todoEditor.timestamp.collectAsState()
-    val showDatePicker by todoEditor.showDatePicker.collectAsState()
-    val showTimePicker by todoEditor.showTimePicker.collectAsState()
+    val title by todoForm.title.collectAsState()
+    val description by todoForm.description.collectAsState()
+    val timestamp by todoForm.timestamp.collectAsState()
+    val showDatePicker by todoForm.showDatePicker.collectAsState()
+    val showTimePicker by todoForm.showTimePicker.collectAsState()
 
     var isDone by remember { mutableStateOf(false) }
     if (isDone) {
-        onDone(todoEditor)
+        onDone(todoForm)
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        TitleSection(title, todoEditor::updateTitle)
-        TodoDescription(description, todoEditor::updateDescription)
+        TitleSection(title, todoForm::updateTitle)
+        TodoDescription(description, todoForm::updateDescription)
         Row {
             ToBeDoneByDate(
                 timestamp = timestamp,
-                onSelected = todoEditor::showDatePicker
+                onSelected = todoForm::showDatePicker
             )
             ToBeDoneByTime(
                 timestamp = timestamp,
-                onSelected = todoEditor::showTimePicker
+                onSelected = todoForm::showTimePicker
             )
         }
-        CTAButton(isEnabled = todoEditor.isValid(), buttonText = todoEditor.buttonText()) {
+        CTAButton(isEnabled = todoForm.isValid(), buttonText = todoForm.buttonText()) {
             // This now should update state
             isDone = true
         }
@@ -122,14 +122,14 @@ fun EditTodo(
 
     if (showDatePicker) {
         Calendar(
-            initialTimestamp = todoEditor.initialTimestamp(),
-            onClose = todoEditor::updateCompletedByDate
+            initialTimestamp = todoForm.initialTimestamp(),
+            onClose = todoForm::updateCompletedByDate
         )
     }
     if (showTimePicker) {
         Clock(
             timestamp = timestamp,
-            onClose = todoEditor::updateHoursMins
+            onClose = todoForm::updateHoursMins
         )
     }
 }
