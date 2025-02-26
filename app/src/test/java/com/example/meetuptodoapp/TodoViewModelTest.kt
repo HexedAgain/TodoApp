@@ -7,7 +7,10 @@ import com.example.meetuptodoapp.TodoViewModel.UIMode.ViewSingle
 import com.example.meetuptodoapp.api.TodoRepository
 import com.example.meetuptodoapp.domain.model.TodoItem
 import com.example.meetuptodoapp.domain.model.Todos
+import com.example.meetuptodoapp.storage.TodoSharedPrefs
 import com.example.meetuptodoapp.storage.TodoStorage
+import com.google.common.base.Verify.verify
+import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -19,6 +22,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.serialization.json.Json
 import org.junit.Before
 import org.junit.Test
 
@@ -32,6 +36,8 @@ class TodoViewModelTest {
     private val mockTimeSupplier: TimeSupplier = mockk()
     private val mockIdSupplier: IdSupplier = mockk()
     private val testDispatcher = UnconfinedTestDispatcher()
+    private val mockTodoPrefs: TodoSharedPrefs = mockk()
+    private val testIoDispatcher = UnconfinedTestDispatcher()
     private val dummyTodo = TodoItem(
         id = "some-id",
         title = "some-title",
@@ -51,6 +57,8 @@ class TodoViewModelTest {
             dummyFlow.value = Todos(todos = todosList)
             todos
         }
+        coEvery { mockTodoStorage.setMigrated() }.answers {}
+        coEvery { mockTodoPrefs.readTodos() }.returns(Todos.default())
         coEvery { mockRepository.logTodoStats(any(), any()) }.answers { }
         every { mockTimeSupplier.now() }.returns(TIME_NOW)
         every { mockIdSupplier.id() }.returns("some-id")
@@ -61,8 +69,9 @@ class TodoViewModelTest {
     private fun reInitialiseViewModel() = runTest {
         viewModel = TodoViewModel(
             todoStorage = mockTodoStorage,
-            repository = mockRepository,
             timeSupplier = mockTimeSupplier,
+            todoPrefs = mockTodoPrefs,
+            ioDispatcher = testIoDispatcher,
             idSupplier = mockIdSupplier
         )
     }
@@ -73,6 +82,21 @@ class TodoViewModelTest {
 
         assertEquals(dummyTodo, viewModel.todos.value.first())
         assertEquals(anotherDummyTodo, viewModel.todos.value.last())
+    }
+
+    @Test
+    fun `initialise, if migration not done it gets old style todos from sharedPrefs`() {
+        coVerify { mockTodoPrefs.readTodos() }
+    }
+
+    @Test
+    fun `initialise, if migration has been done it makes no access from sharedPrefs`() {
+        dummyFlow.value = Todos(isMigrated = true, todos = listOf())
+        clearMocks(mockTodoPrefs) // we initialise in setup before emitting the flow above
+
+        reInitialiseViewModel()
+
+        coVerify(exactly = 0) { mockTodoPrefs.readTodos() }
     }
 
     @Test
@@ -191,15 +215,6 @@ class TodoViewModelTest {
         viewModel.onTodoDone(existingTodoForm)
 
         assertEquals(listOf(dummyTodo.copy(description = "some-updated-description")), viewModel.todos.value)
-    }
-
-    @Test
-    fun `onTodoDone, it logs the todo`() = runTest {
-        val existingTodoForm = TodoForm(dummyTodo, mockTimeSupplier)
-
-        viewModel.onTodoDone(existingTodoForm)
-
-        coVerify { mockRepository.logTodoStats(dummyTodo, any()) }
     }
 
     companion object {
