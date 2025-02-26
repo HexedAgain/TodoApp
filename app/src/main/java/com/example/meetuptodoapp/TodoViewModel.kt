@@ -93,7 +93,7 @@ class TodoViewModel(
     private val todoStorage: TodoStorage,
     private val repository: TodoRepository,
     private val idSupplier: IdSupplier = IdSupplier(),
-    val timeSupplier: TimeSupplier = TimeSupplier(),
+    private val timeSupplier: TimeSupplier = TimeSupplier(),
 ): ViewModel() {
 
     sealed interface TodoAction {

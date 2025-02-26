@@ -22,6 +22,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
@@ -36,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -52,20 +54,22 @@ class MainActivity: ComponentActivity() {
         val viewModel: TodoViewModel by viewModel()
         enableEdgeToEdge()
         setContent {
-            TodoHome(viewModel)
+            TodoScreen(viewModel)
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TodoHome(viewModel: TodoViewModel) {
+fun TodoScreen(viewModel: TodoViewModel) {
     val todoAction by viewModel.todoAction.collectAsState()
     val todos by viewModel.todos.collectAsState()
     MeetupTODOAppTheme {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
-            floatingActionButton = { TodoFAB { viewModel.onCreateTodo() } }
+            floatingActionButton = { TodoFAB {
+                viewModel.onCreateTodo()
+            } }
         ) { innerPadding ->
             val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
             var showDoneTodos by remember { mutableStateOf(false) }
@@ -122,10 +126,9 @@ private fun Header(currChecked: Boolean, onChecked: (Boolean) -> Unit) {
     }
 }
 
-// TODO - viewmodel should be filtering the completed ones if necessary
 @Composable
 private fun TodoList(todos: List<TodoItem>, isCompleted: (TodoItem) -> Boolean, onClick: (TodoItem) -> Unit) {
-    LazyColumn {
+    LazyColumn(modifier = Modifier.testTag("TODO_LIST")) {
         items(count = todos.size) { idx ->
             val todo = todos[idx]
             Card(
@@ -158,7 +161,7 @@ private fun TodoFAB(onClick: () -> Unit) {
     FloatingActionButton(
         onClick = onClick,
         shape = CircleShape,
-        modifier = Modifier.size(72.dp)
+        modifier = Modifier.testTag("FAB").size(72.dp)
     ) {
         Icon(
             painter = painterResource(R.drawable.baseline_add_24),
@@ -180,6 +183,7 @@ fun ModalUpdateTodo(
 ) {
     LaunchedEffect(null) { bottomSheetState.expand() }
     ModalBottomSheet(
+        modifier = Modifier.testTag("MODAL_BOTTOM_SHEET"),
         sheetState = bottomSheetState,
         onDismissRequest = {
             onDone(null)
