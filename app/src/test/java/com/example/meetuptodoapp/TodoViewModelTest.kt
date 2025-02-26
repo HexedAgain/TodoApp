@@ -1,12 +1,13 @@
 package com.example.meetuptodoapp
 
-import com.example.meetuptodoapp.TodoViewModel.TodoAction.CreateTodo
-import com.example.meetuptodoapp.TodoViewModel.TodoAction.None
-import com.example.meetuptodoapp.TodoViewModel.TodoAction.UpdateTodo
-import com.example.meetuptodoapp.TodoViewModel.TodoAction.ViewTodo
+import com.example.meetuptodoapp.TodoViewModel.UIMode.Create
+import com.example.meetuptodoapp.TodoViewModel.UIMode.ViewAll
+import com.example.meetuptodoapp.TodoViewModel.UIMode.Update
+import com.example.meetuptodoapp.TodoViewModel.UIMode.ViewSingle
 import com.example.meetuptodoapp.api.TodoRepository
 import com.example.meetuptodoapp.domain.model.TodoItem
 import com.example.meetuptodoapp.domain.model.Todos
+import com.example.meetuptodoapp.storage.TodoStorage
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -91,19 +92,37 @@ class TodoViewModelTest {
     }
 
     @Test
-    fun `onViewTodo, it publishes a ViewTodo action equipped with supplied TODO`() = runTest {
+    fun `onToggleComplete, when invoked on an un-completed todo it sets the completion time as now`() {
+        dummyFlow.value = Todos(todos = listOf(dummyTodo))
+
+        viewModel.onToggleComplete(dummyTodo)
+
+        assertEquals(TIME_NOW, viewModel.todos.value.first().completedTime)
+    }
+
+    @Test
+    fun `onToggleComplete, when invoked on a completed todo it sets the completion time as Long MAX_VALUE`() {
+        dummyFlow.value = Todos(todos = listOf(completedTodo))
+
+        viewModel.onToggleComplete(completedTodo)
+
+        assertEquals(Long.MAX_VALUE, viewModel.todos.value.first().completedTime)
+    }
+
+    @Test
+    fun `onViewTodo, it sets uiMode to ViewSingle, equipped with supplied TODO`() = runTest {
         viewModel.onViewTodo(dummyTodo)
 
-        with ((viewModel.todoAction.value as ViewTodo)) {
+        with ((viewModel.uiMode.value as ViewSingle)) {
             assertEquals(dummyTodo, this.todo)
         }
     }
 
     @Test
-    fun `onCreateTodo, it publishes a CreateTodo action equipped with an uninitialised form`() = runTest {
+    fun `onCreateTodo, it sets uiMode to Create, equipped with an uninitialised form`() = runTest {
         viewModel.onCreateTodo()
 
-        with ((viewModel.todoAction.value as CreateTodo).todoForm) {
+        with ((viewModel.uiMode.value as Create).todoForm) {
             assertEquals(null, currentTodo)
             assertEquals(title.value, "")
             assertEquals(description.value, "")
@@ -112,10 +131,10 @@ class TodoViewModelTest {
     }
 
     @Test
-    fun `onUpdateTodo, it publishes an UpdateTodo action equipped with form consistent with supplied TODO`() = runTest {
+    fun `onUpdateTodo, it sets uiMode to Update, equipped with form consistent with supplied TODO`() = runTest {
        viewModel.onUpdateTodo(dummyTodo)
 
-        with ((viewModel.todoAction.value as UpdateTodo).todoForm) {
+        with ((viewModel.uiMode.value as Update).todoForm) {
             assertEquals(dummyTodo, currentTodo)
             assertEquals(title.value, dummyTodo.title)
             assertEquals(description.value, dummyTodo.description)
@@ -133,13 +152,13 @@ class TodoViewModelTest {
     }
 
     @Test
-    fun `onTodoDone, if action is neither create nor update, then it publishes default action and leaves todos unchanged`() = runTest {
+    fun `onTodoDone, if action is neither create nor update, then it sets uiMode to ViewAll and leaves todos unchanged`() = runTest {
         dummyFlow.value = Todos(todos = listOf(dummyTodo))
         viewModel.onViewTodo(dummyTodo)
 
         viewModel.onTodoDone()
 
-        assertEquals(None, viewModel.todoAction.value)
+        assertEquals(ViewAll, viewModel.uiMode.value)
         assertEquals(listOf(dummyTodo), viewModel.todos.value)
     }
 

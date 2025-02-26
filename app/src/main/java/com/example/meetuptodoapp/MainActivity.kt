@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -21,8 +22,8 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
@@ -31,9 +32,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -43,11 +41,12 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.meetuptodoapp.TodoViewModel.TodoAction
+import com.example.meetuptodoapp.TodoViewModel.UIMode
 import com.example.meetuptodoapp.domain.model.TodoItem
 import com.example.meetuptodoapp.ui.theme.MeetupTODOAppTheme
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
+// FIXME - move strings to resources
 class MainActivity: ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -62,7 +61,7 @@ class MainActivity: ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TodoScreen(viewModel: TodoViewModel) {
-    val todoAction by viewModel.todoAction.collectAsState()
+    val uiMode by viewModel.uiMode.collectAsState()
     val todos by viewModel.todos.collectAsState()
     MeetupTODOAppTheme {
         Scaffold(
@@ -72,23 +71,24 @@ fun TodoScreen(viewModel: TodoViewModel) {
             } }
         ) { innerPadding ->
             val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
-            var showDoneTodos by remember { mutableStateOf(false) }
+            val showCompleted by viewModel.showCompleted.collectAsState()
             Column(modifier = Modifier.padding(innerPadding)) {
-                Header(showDoneTodos) {
-                    showDoneTodos = it
+                Header(showCompleted) {
+                    viewModel.toggleShowCompleted()
                 }
                 TodoList(
                     todos = todos,
                     isCompleted = viewModel::isCompleted,
-                    onClick = viewModel::onViewTodo
+                    onViewTodo = viewModel::onViewTodo,
+                    onToggleComplete = viewModel::onToggleComplete
                 )
 
-                when (todoAction) {
-                    is TodoAction.None -> {}
+                when (uiMode) {
+                    is UIMode.ViewAll -> {}
                     else -> {
-                        ModalUpdateTodo(
+                        ModalTodo(
                             bottomSheetState = bottomSheetState,
-                            todoAction = todoAction,
+                            todoAction = uiMode,
                             onDelete = viewModel::onDeleteTodo,
                             onDone = viewModel::onTodoDone,
                             onUpdate = viewModel::onUpdateTodo
@@ -96,6 +96,32 @@ fun TodoScreen(viewModel: TodoViewModel) {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun AddTodoScreen(
+    todoAction: UIMode,
+    onUpdate: (TodoItem) -> Unit,
+    onDelete: (TodoItem) -> Unit,
+    onDone: @Composable (TodoForm) -> Unit
+) {
+    Box(
+        modifier = Modifier.padding(16.dp),
+    ) {
+        when (todoAction) {
+            is UIMode.ViewSingle -> {
+                ViewTodo(todoAction.todo, onDelete = onDelete, onUpdate = onUpdate)
+            }
+            is UIMode.Update -> {
+                EditTodo(todoForm = todoAction.todoForm, onDone = onDone)
+            }
+            is UIMode.Create -> {
+                EditTodo(todoForm = todoAction.todoForm, onDone = onDone)
+            }
+
+            else -> {}
         }
     }
 }
@@ -127,7 +153,12 @@ private fun Header(currChecked: Boolean, onChecked: (Boolean) -> Unit) {
 }
 
 @Composable
-private fun TodoList(todos: List<TodoItem>, isCompleted: (TodoItem) -> Boolean, onClick: (TodoItem) -> Unit) {
+private fun TodoList(
+    todos: List<TodoItem>,
+    isCompleted: (TodoItem) -> Boolean,
+    onViewTodo: (TodoItem) -> Unit,
+    onToggleComplete: (TodoItem) -> Unit
+) {
     LazyColumn(modifier = Modifier.testTag("TODO_LIST")) {
         items(count = todos.size) { idx ->
             val todo = todos[idx]
@@ -136,7 +167,7 @@ private fun TodoList(todos: List<TodoItem>, isCompleted: (TodoItem) -> Boolean, 
                 modifier = Modifier
                     .fillMaxWidth().fillMaxHeight()
                     .padding(vertical = 8.dp, horizontal = 16.dp)
-                    .clickable { onClick(todo) }
+                    .clickable { onViewTodo(todo) }
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -146,10 +177,13 @@ private fun TodoList(todos: List<TodoItem>, isCompleted: (TodoItem) -> Boolean, 
                         Text(todo.title, style = TextStyle().copy(fontWeight = FontWeight.Bold, fontSize = 16.sp))
                         Text(text = todo.description, modifier = Modifier)
                     }
-                    Checkbox(
-                        onCheckedChange = { },
-                        checked = isCompleted(todo)
-                    )
+                    IconButton(onClick = { onToggleComplete(todo) }) {
+                        Icon(
+                            painter = painterResource(R.drawable.baseline_done_24),
+                            contentDescription = null,
+                            tint = if (isCompleted(todo)) Color.DarkGray else Color.LightGray
+                        )
+                    }
                 }
             }
         }
@@ -174,9 +208,9 @@ private fun TodoFAB(onClick: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ModalUpdateTodo(
+fun ModalTodo(
     bottomSheetState: SheetState,
-    todoAction: TodoAction,
+    todoAction: UIMode,
     onUpdate: (TodoItem) -> Unit,
     onDelete: (TodoItem) -> Unit,
     onDone: (TodoForm?) -> Unit

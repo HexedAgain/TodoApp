@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">MeetupTODOApp</string>
+    <string name="prefs">TodoAppPrefs</string>
 </resources>

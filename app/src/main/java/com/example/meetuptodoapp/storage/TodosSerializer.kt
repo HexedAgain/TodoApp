@@ -1,10 +1,9 @@
-package com.example.meetuptodoapp.domain.model
+package com.example.meetuptodoapp.storage
 
 import android.util.Log
 import androidx.datastore.core.Serializer
+import com.example.meetuptodoapp.domain.model.Todos
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.protobuf.ProtoBuf
-import kotlinx.serialization.*
 import kotlinx.serialization.json.*
 import java.io.InputStream
 import java.io.OutputStream

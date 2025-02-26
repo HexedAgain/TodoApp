@@ -47,7 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.meetuptodoapp.TodoViewModel.TodoAction
+import com.example.meetuptodoapp.TodoViewModel.UIMode
 import com.example.meetuptodoapp.domain.model.TodoItem
 import com.example.meetuptodoapp.utils.formatDate
 import com.example.meetuptodoapp.utils.formatTime
@@ -55,33 +55,6 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import java.time.Instant
 import java.time.ZoneId
-
-// FIXME - move strings to resources
-@Composable
-fun AddTodoScreen(
-    todoAction: TodoAction,
-    onUpdate: (TodoItem) -> Unit,
-    onDelete: (TodoItem) -> Unit,
-    onDone: @Composable (TodoForm) -> Unit
-) {
-    Box(
-        modifier = Modifier.padding(16.dp),
-    ) {
-        when (todoAction) {
-            is TodoAction.ViewTodo -> {
-                ViewTodo(todoAction.todo, onDelete = onDelete, onUpdate = onUpdate)
-            }
-            is TodoAction.UpdateTodo -> {
-                EditTodo(todoForm = todoAction.todoForm, onDone = onDone)
-            }
-            is TodoAction.CreateTodo -> {
-                EditTodo(todoForm = todoAction.todoForm, onDone = onDone)
-            }
-
-            else -> {}
-        }
-    }
-}
 
 @Composable
 fun EditTodo(

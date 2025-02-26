@@ -15,7 +15,7 @@ data class TodoItem(
     val title: String = "",
     val description: String = "",
     val timestamp: Long = 0L,
-    val completionTime: Long = Long.MAX_VALUE,
+    val completionTime: Long = -1L,
     val completedTime: Long = Long.MAX_VALUE
 ) {
     fun toUI(todoItem: TodoItem): UITodo {

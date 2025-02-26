@@ -19,10 +19,12 @@ import androidx.compose.ui.test.onSiblings
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.requestFocus
 import com.example.meetuptodoapp.domain.model.TodoItem
+import io.mockk.MockK
 import io.mockk.Runs
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
+import io.mockk.mockkClass
 import io.mockk.spyk
 import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -38,30 +40,30 @@ import org.junit.runner.RunWith
 import org.koin.core.Koin
 import org.koin.core.context.GlobalContext.stopKoin
 import org.koin.java.KoinJavaComponent.inject
+import org.koin.test.KoinTest
+import org.koin.test.mock.MockProviderRule
+import org.koin.test.mock.declareMock
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [28])
-class TodoScreenTest {
+class TodoScreenTest: KoinTest {
     @get:Rule val rule = createComposeRule()
-//    val mockViewModel: TodoViewModel = mockk()
+
+//        val mockTimeSupplier = declareMock<TimeSupplier>()
+//        every { mockTimeSupplier.now() }.returns(0L)
+
+    @get:Rule
+    val mockProvider = MockProviderRule.create { mockkClass(it) }
     val actualViewModel: TodoViewModel by inject(TodoViewModel::class.java)
     val spiedViewModel = spyk(actualViewModel)
-    val mockTimeSupplier: TimeSupplier = mockk()
     private val dummyTodo = TodoItem(
         id ="some-id",
         title = "some-title",
         description = "some-description"
     )
     private val anotherDummyTodo = dummyTodo.copy(title = "some-other-title")
-
-    @Before
-    fun setup() {
-//        every { mockViewModel.todoAction }.returns(MutableStateFlow(TodoViewModel.TodoAction.None))
-//        every { mockViewModel.todos }.returns(MutableStateFlow(listOf()))
-//        every { mockViewModel.onCreateTodo() }.just(Runs)
-    }
 
     @After
     fun teardown() {
@@ -104,7 +106,8 @@ class TodoScreenTest {
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun `when a todo is clicked, the modal opens with immutable fields, correctly populated for the todo`() = runTest {
-        every { spiedViewModel.todos }.returns(MutableStateFlow(listOf(dummyTodo)))
+        val epochTodo = dummyTodo.copy(completionTime = 0L)
+        every { spiedViewModel.todos }.returns(MutableStateFlow(listOf(epochTodo)))
         rule.setContent {
             TodoScreen(spiedViewModel)
         }
@@ -113,15 +116,14 @@ class TodoScreenTest {
             .onChildAt(0)
             .performClick()
 
-        verify { spiedViewModel.onViewTodo(dummyTodo) }
+        verify { spiedViewModel.onViewTodo(epochTodo) }
         with (rule.onNodeWithTag("MODAL_BOTTOM_SHEET")) {
             onChildAt(1).assertTextContains("Title")
             onChildAt(2).assertTextContains("some-title").assertIsNotEditable()
             onChildAt(3).assertTextContains("Description")
             onChildAt(4).assertTextContains("some-description").assertIsNotEditable()
             onChildAt(5).assertTextContains("To Complete By")
-            // FIXME - rig up mock time (make it epoch)
-            onChildAt(6).assertTextContains("some-description").assertIsNotEditable()
+            onChildAt(6).assertTextContains("Thu, 01 January 1970 00:00").assertIsNotEditable()
         }
     }
 

@@ -21,7 +21,7 @@ import androidx.datastore.core.DataStoreFactory
 import androidx.datastore.core.Serializer
 import com.example.meetuptodoapp.api.TodoClientImpl
 import com.example.meetuptodoapp.api.TodoRepository
-import com.example.meetuptodoapp.domain.model.TodoStore
+import com.example.meetuptodoapp.storage.TodoStore
 import com.example.meetuptodoapp.domain.model.Todos
 import io.mockk.coEvery
 import io.mockk.spyk
