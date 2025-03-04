@@ -1,15 +1,18 @@
-package com.example.meetuptodoapp
+package com.example.meetuptodoapp.ui.screen.viewmodel
 
-import com.example.meetuptodoapp.TodoViewModel.UIMode.Create
-import com.example.meetuptodoapp.TodoViewModel.UIMode.ViewAll
-import com.example.meetuptodoapp.TodoViewModel.UIMode.Update
-import com.example.meetuptodoapp.TodoViewModel.UIMode.ViewSingle
+import com.example.meetuptodoapp.ui.viewmodel.TodoViewModel.UIMode.Create
+import com.example.meetuptodoapp.ui.viewmodel.TodoViewModel.UIMode.ViewAll
+import com.example.meetuptodoapp.ui.viewmodel.TodoViewModel.UIMode.Update
+import com.example.meetuptodoapp.ui.viewmodel.TodoViewModel.UIMode.ViewSingle
 import com.example.meetuptodoapp.api.TodoRepository
 import com.example.meetuptodoapp.domain.model.TodoItem
 import com.example.meetuptodoapp.domain.model.Todos
 import com.example.meetuptodoapp.storage.TodoSharedPrefs
 import com.example.meetuptodoapp.storage.TodoStorage
-import com.google.common.base.Verify.verify
+import com.example.meetuptodoapp.ui.viewmodel.IdSupplier
+import com.example.meetuptodoapp.ui.viewmodel.TimeSupplier
+import com.example.meetuptodoapp.ui.viewmodel.TodoForm
+import com.example.meetuptodoapp.ui.viewmodel.TodoViewModel
 import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -19,10 +22,10 @@ import junit.framework.TestCase.assertEquals
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import kotlinx.serialization.json.Json
 import org.junit.Before
 import org.junit.Test
 
@@ -85,12 +88,15 @@ class TodoViewModelTest {
     }
 
     @Test
-    fun `initialise, if migration not done it gets old style todos from sharedPrefs`() {
+    fun `initialise, if migration not done it gets old style todos from sharedPrefs`() = runTest(
+        StandardTestDispatcher()
+    ) {
         coVerify { mockTodoPrefs.readTodos() }
+        println("test")
     }
 
     @Test
-    fun `initialise, if migration has been done it makes no access from sharedPrefs`() {
+    fun `initialise, if migration has been done it makes no access from sharedPrefs`() = runTest {
         dummyFlow.value = Todos(isMigrated = true, todos = listOf())
         clearMocks(mockTodoPrefs) // we initialise in setup before emitting the flow above
 
@@ -100,7 +106,7 @@ class TodoViewModelTest {
     }
 
     @Test
-    fun `toggleCompleted, if toggled true, it publishes all TODOs`() {
+    fun `toggleCompleted, if toggled true, it publishes all TODOs`() = runTest {
         dummyFlow.value = Todos(todos = listOf(dummyTodo, completedTodo))
 
         viewModel.toggleShowCompleted()
@@ -109,14 +115,14 @@ class TodoViewModelTest {
     }
 
     @Test
-    fun `toggleCompleted, if toggled false, it publishes all TODOs that are uncompleted`() {
+    fun `toggleCompleted, if toggled false, it publishes all TODOs that are uncompleted`() = runTest {
         dummyFlow.value = Todos(todos = listOf(dummyTodo, completedTodo))
 
         assertEquals(listOf(dummyTodo), viewModel.todos.value)
     }
 
     @Test
-    fun `onToggleComplete, when invoked on an un-completed todo it sets the completion time as now`() {
+    fun `onToggleComplete, when invoked on an un-completed todo it sets the completion time as now`() = runTest {
         dummyFlow.value = Todos(todos = listOf(dummyTodo))
 
         viewModel.onToggleComplete(dummyTodo)
@@ -125,7 +131,7 @@ class TodoViewModelTest {
     }
 
     @Test
-    fun `onToggleComplete, when invoked on a completed todo it sets the completion time as Long MAX_VALUE`() {
+    fun `onToggleComplete, when invoked on a completed todo it sets the completion time as Long MAX_VALUE`() = runTest {
         dummyFlow.value = Todos(todos = listOf(completedTodo))
 
         viewModel.onToggleComplete(completedTodo)

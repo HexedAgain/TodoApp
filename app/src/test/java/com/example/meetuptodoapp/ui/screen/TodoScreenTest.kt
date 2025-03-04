@@ -1,63 +1,47 @@
-package com.example.meetuptodoapp
+package com.example.meetuptodoapp.ui.screen
 
-import android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction
-import androidx.compose.ui.semantics.SemanticsPropertyKey
 import androidx.compose.ui.test.SemanticsNodeInteraction
-import androidx.compose.ui.test.assert
-import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsEnabled
-import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onChildAt
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.onSibling
-import androidx.compose.ui.test.onSiblings
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.requestFocus
 import com.example.meetuptodoapp.domain.model.TodoItem
-import io.mockk.MockK
-import io.mockk.Runs
+import com.example.meetuptodoapp.ui.tags.TodoTags
+import com.example.meetuptodoapp.ui.viewmodel.TodoViewModel
 import io.mockk.every
-import io.mockk.just
 import io.mockk.mockk
 import io.mockk.mockkClass
 import io.mockk.spyk
 import io.mockk.verify
+import junit.framework.TestCase.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.yield
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.koin.core.Koin
 import org.koin.core.context.GlobalContext.stopKoin
-import org.koin.java.KoinJavaComponent.inject
-import org.koin.test.KoinTest
 import org.koin.test.mock.MockProviderRule
-import org.koin.test.mock.declareMock
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [28])
-class TodoScreenTest: KoinTest {
+@OptIn(ExperimentalCoroutinesApi::class)
+class TodoScreenTest {
     @get:Rule val rule = createComposeRule()
 
-//        val mockTimeSupplier = declareMock<TimeSupplier>()
-//        every { mockTimeSupplier.now() }.returns(0L)
+    private lateinit var spiedViewModel: TodoViewModel
 
     @get:Rule
     val mockProvider = MockProviderRule.create { mockkClass(it) }
-    val actualViewModel: TodoViewModel by inject(TodoViewModel::class.java)
-    val spiedViewModel = spyk(actualViewModel)
+//    val spiedViewModel = spyk(actualViewModel)
     private val dummyTodo = TodoItem(
         id ="some-id",
         title = "some-title",
@@ -65,9 +49,36 @@ class TodoScreenTest: KoinTest {
     )
     private val anotherDummyTodo = dummyTodo.copy(title = "some-other-title")
 
+    @Before
+    fun setup() {
+        spiedViewModel = spyk(
+            TodoViewModel(
+                todoStorage = mockk(),
+                ioDispatcher = UnconfinedTestDispatcher(),
+                todoPrefs = mockk()
+            )
+        )
+    }
+
     @After
     fun teardown() {
         stopKoin()
+    }
+
+    // Here we show that all interactions are correctly hooked up to the viewmodel
+    @Test
+    fun `when FAB is clicked, UI mode transitions to Create`() {
+        rule.setContent { TodoScreen(spiedViewModel) }
+
+        rule.onNodeWithTag(TodoTags.FAB).performClick()
+
+        assertTrue(spiedViewModel.uiMode.value is TodoViewModel.UIMode.Create)
+    }
+
+
+    @Test
+    fun `when add new todo form button is clicked UI asks viewmodel to create the new TODO`() {
+        assertTrue(false)
     }
 
     @Test

@@ -2,10 +2,9 @@ package com.example.meetuptodoapp.di
 
 import android.content.Context
 import android.content.Context.MODE_PRIVATE
-import android.content.SharedPreferences
 import com.example.meetuptodoapp.R
 import com.example.meetuptodoapp.storage.TodoStorage
-import com.example.meetuptodoapp.TodoViewModel
+import com.example.meetuptodoapp.ui.viewmodel.TodoViewModel
 import com.example.meetuptodoapp.api.TodoClient
 import com.example.meetuptodoapp.api.TodoRepository
 import com.example.meetuptodoapp.storage.TodoSharedPrefs

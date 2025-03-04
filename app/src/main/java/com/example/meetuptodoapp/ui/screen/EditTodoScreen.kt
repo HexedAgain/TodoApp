@@ -1,4 +1,4 @@
-package com.example.meetuptodoapp
+package com.example.meetuptodoapp.ui.screen
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -35,20 +35,23 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.meetuptodoapp.TodoViewModel.UIMode
+import com.example.meetuptodoapp.R
+import com.example.meetuptodoapp.ui.viewmodel.TodoForm
 import com.example.meetuptodoapp.domain.model.TodoItem
+import com.example.meetuptodoapp.ui.tags.TodoTags
+import com.example.meetuptodoapp.ui.widgets.DateSelector
+import com.example.meetuptodoapp.ui.widgets.DateSelectorImpl
 import com.example.meetuptodoapp.utils.formatDate
 import com.example.meetuptodoapp.utils.formatTime
 import kotlinx.coroutines.channels.BufferOverflow
@@ -57,9 +60,10 @@ import java.time.Instant
 import java.time.ZoneId
 
 @Composable
-fun EditTodo(
+fun ModalTodoForm(
     todoForm: TodoForm,
-    onDone: @Composable (TodoForm) -> Unit
+    onDone: (TodoForm) -> Unit,
+    dateSelector: DateSelector = DateSelectorImpl
 ) {
     // Interesting bug here I had mixed up title / description
     val title by todoForm.title.collectAsState()
@@ -68,10 +72,10 @@ fun EditTodo(
     val showDatePicker by todoForm.showDatePicker.collectAsState()
     val showTimePicker by todoForm.showTimePicker.collectAsState()
 
-    var isDone by remember { mutableStateOf(false) }
-    if (isDone) {
-        onDone(todoForm)
-    }
+//    var isDone by remember { mutableStateOf(false) }
+//    if (isDone) {
+//        onDone(todoForm)
+//    }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         TitleSection(title, todoForm::updateTitle)
@@ -87,17 +91,20 @@ fun EditTodo(
             )
         }
         CTAButton(isEnabled = todoForm.isValid(), buttonText = todoForm.buttonText()) {
-            // This now should update state
-            isDone = true
+            onDone(todoForm)
         }
         Spacer(modifier = Modifier.weight(.75f))
     }
 
     if (showDatePicker) {
-        Calendar(
+        dateSelector(
             initialTimestamp = todoForm.initialTimestamp(),
             onClose = todoForm::updateCompletedByDate
         )
+//        Calendar(
+//            initialTimestamp = todoForm.initialTimestamp(),
+//            onClose = todoForm::updateCompletedByDate
+//        )
     }
     if (showTimePicker) {
         Clock(
@@ -110,7 +117,7 @@ fun EditTodo(
 @Composable
 fun CTAButton(isEnabled: Boolean, buttonText: String, onDone: () -> Unit) {
     Box(
-        modifier = Modifier.padding(vertical = 16.dp).fillMaxWidth(),
+        modifier = Modifier.testTag(TodoTags.ADD_EDIT_TODO_BUTTON).padding(vertical = 16.dp).fillMaxWidth(),
         contentAlignment = Alignment.Center
     ) {
         Button(
@@ -190,7 +197,7 @@ fun TitleSection(title: String, onUpdateTitle: (String) -> Unit) {
         onValueChange = onUpdateTitle,
         singleLine = true,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-        modifier = Modifier.padding(vertical = 8.dp).fillMaxWidth()
+        modifier = Modifier.testTag(TodoTags.TODO_FORM_TITLE).padding(vertical = 8.dp).fillMaxWidth()
     )
 }
 
@@ -202,7 +209,7 @@ fun ColumnScope.TodoDescription(description: String, onUpdateDescription: (Strin
         onValueChange = onUpdateDescription,
         singleLine = false,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-        modifier = Modifier.padding(vertical = 8.dp).fillMaxWidth()
+        modifier = Modifier.testTag(TodoTags.TODO_FORM_DESCRIPTION).padding(vertical = 8.dp).fillMaxWidth()
     )
 }
 
@@ -226,7 +233,7 @@ fun ToBeDoneByDate(timestamp: Long, onSelected: () -> Unit) {
                     contentDescription = null
                 )
             },
-            modifier = Modifier.fillMaxWidth(.6f).padding(end = 8.dp),
+            modifier = Modifier.testTag(TodoTags.TODO_FORM_DATE).fillMaxWidth(.6f).padding(end = 8.dp),
             interactionSource = interactionScope
         )
     }
@@ -250,6 +257,7 @@ fun ToBeDoneByTime(timestamp: Long, onSelected: () -> Unit) {
                     contentDescription = null
                 )
             },
+            modifier = Modifier.testTag(TodoTags.TODO_FORM_TIME),
             interactionSource = interactionScope
         )
     }
@@ -291,7 +299,7 @@ fun Calendar(initialTimestamp: Long, onClose: (Long?) -> Unit) {
         ) {
             DatePicker(
                 state = datePickerState,
-                modifier = Modifier
+                modifier = Modifier.testTag(TodoTags.DATE_PICKER)
             )
         }
     }

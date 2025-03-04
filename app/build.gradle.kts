@@ -82,7 +82,7 @@ dependencies {
     implementation(libs.koin.core)
     implementation(libs.koin.android)
 //    implementation(libs.firebase.messaging)
-    implementation(libs.androidx.work.runtime)
+    //implementation(libs.androidx.work.runtime)
     implementation(libs.koin.test)
     implementation(libs.koin.test.junit4)
     testImplementation(libs.junit)

@@ -1,10 +1,8 @@
-package com.example.meetuptodoapp
+package com.example.meetuptodoapp.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.meetuptodoapp.api.TodoRepository
 import com.example.meetuptodoapp.domain.model.TodoItem
-import com.example.meetuptodoapp.domain.model.Todos
 import com.example.meetuptodoapp.storage.TodoSharedPrefs
 import com.example.meetuptodoapp.storage.TodoStorage
 import com.example.meetuptodoapp.ui.model.UITodo
@@ -18,7 +16,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.ZoneId
 import java.util.UUID
@@ -30,6 +27,12 @@ class IdSupplier {
 class TimeSupplier {
     fun now(): Long = Instant.now().toEpochMilli()
 }
+
+data class TodoFormState(
+    private val _title: MutableStateFlow<String>,
+    private val _description: MutableStateFlow<String>,
+    private val _timestamp: MutableStateFlow<Long>
+)
 
 class TodoForm(
     val currentTodo: TodoItem?,
@@ -113,10 +116,10 @@ class TodoViewModel(
     val todos: StateFlow<List<TodoItem>> = _todos
         .map { todos -> onlyVisibleTodos(todos) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, listOf())
-
-    init {
-        collectTodos()
-    }
+//
+//    init {
+//        collectTodos()
+//    }
 
 
     private val _uiMode: MutableStateFlow<UIMode> = MutableStateFlow(UIMode.ViewAll)
@@ -166,9 +169,8 @@ class TodoViewModel(
                 completionTime = todoForm.timestamp.value
             )
             commitTodo(todo)
-        } ?: run {
-            _uiMode.value = UIMode.ViewAll
         }
+        _uiMode.value = UIMode.ViewAll
     }
 
     fun isCompleted(todo: TodoItem): Boolean {
@@ -189,6 +191,17 @@ class TodoViewModel(
 
     fun shouldShowTodo(todo: TodoItem): Boolean {
         return _showCompleted.value || !isCompleted(todo)
+    }
+
+    fun collectTodos() {
+        viewModelScope.launch {
+            todoStorage.readAsFlow().collect {
+                if (!it.isMigrated) {
+                    migrateOldTodos()
+                }
+                _todos.value = it.todos
+            }
+        }
     }
 
     // Previous incantations of this app would have saved todos to shared prefs
@@ -217,17 +230,6 @@ class TodoViewModel(
         }
         viewModelScope.launch {
             todoStorage.write(newTodos)
-        }
-    }
-
-    private fun collectTodos() {
-        viewModelScope.launch {
-            todoStorage.readAsFlow().collect {
-                if (!it.isMigrated) {
-                    migrateOldTodos()
-                }
-                _todos.value = it.todos
-            }
         }
     }
 
