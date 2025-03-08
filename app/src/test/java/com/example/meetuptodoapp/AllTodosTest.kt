@@ -1,12 +1,25 @@
 package com.example.meetuptodoapp
 
 import android.content.Context.MODE_PRIVATE
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.LocalActivity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotDisplayed
+import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onChild
+import androidx.compose.ui.test.onChildAt
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.datastore.core.DataStore
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.requestFocus
+import androidx.compose.ui.test.swipeDown
+import androidx.compose.ui.test.swipeUp
 import androidx.test.core.app.ApplicationProvider
 import com.example.meetuptodoapp.domain.model.TodoItem
 import com.example.meetuptodoapp.domain.model.TodoStore
@@ -14,16 +27,28 @@ import com.example.meetuptodoapp.domain.model.Todos
 import io.mockk.coEvery
 import io.mockk.mockk
 import io.mockk.spyk
+import junit.framework.TestCase.assertEquals
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment.application
 import org.robolectric.annotation.Config
 import java.io.File
-import java.io.InputStream
-import java.io.OutputStream
+import java.io.FileInputStream
 import java.time.Instant
+import java.time.ZoneId
+import java.time.format.TextStyle
+import java.util.Locale
 import java.util.UUID
 
 @RunWith(RobolectricTestRunner::class)
@@ -32,10 +57,19 @@ class AllTodosTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
+    val time1 = Instant.now().toEpochMilli() + 3600000
+    val time2 = Instant.now().toEpochMilli()
+
+    val dateStr  = Instant.now().atZone(ZoneId.of("GMT")).withDayOfMonth(28)
+        .run { "${dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.UK)}, 28/${monthValue.toString().padStart(2, '0')}/${year}" }
+
     @Test
     fun testOldTodos() {
         val application = spyk(ApplicationProvider.getApplicationContext<TodoApplication>())
         val prefs = application.getSharedPreferences("todos", MODE_PRIVATE)
+        prefs.edit()
+            .putString("TODOS", "{\"todos\":[{\"id\":\"${UUID.randomUUID()}\",\"title\":\"Donald Duck\",\"description\":\"Watch Donald Duck\",\"timestamp\":${Instant.now().toEpochMilli()},\"completionTime\":$time1}]}")
+            .commit()
         val flow = MutableStateFlow(Todos.default())
         val testDataStore: TodoStore = mockk()
         coEvery { testDataStore.data }.returns(flow)
@@ -49,9 +83,6 @@ class AllTodosTest {
         val field = TodoApplication::class.java.getDeclaredField("todoDataStore")
         field.isAccessible = true
         field.set(application, testDataStore)
-        prefs.edit()
-            .putString("TODOS", "{\"todos\":[{\"id\":\"${UUID.randomUUID()}\",\"title\":\"Donald Duck\",\"description\":\"Watch Donald Duck\",\"timestamp\":${Instant.now().toEpochMilli()},\"completionTime\":${Instant.now().toEpochMilli() + 3600000}}]}")
-            .commit()
         composeTestRule.setContent {
             TodoScreenRoot()
         }
@@ -78,16 +109,16 @@ class AllTodosTest {
                     id = UUID.randomUUID().toString(),
                     title = "Donald Duck",
                     description = "Watch Donald Duck",
-                    timestamp = Instant.now().toEpochMilli(),
-                    completionTime = Instant.now().toEpochMilli() + 3600000
+                    timestamp = time1,
+                    completionTime = time1
                 ),
                 TodoItem(
                     id = UUID.randomUUID().toString(),
                     title = "Mickey Mouse",
                     description = "Hide and seek with Donald Duck",
-                    timestamp = Instant.now().toEpochMilli() + 3600000,
-                    completionTime = Instant.now().toEpochMilli() + 3600000,
-                    completedTime = Instant.now().toEpochMilli()
+                    timestamp = time1,
+                    completionTime = time1,
+                    completedTime = time2
                 )
             )
         )
@@ -105,27 +136,50 @@ class AllTodosTest {
         composeTestRule.onNodeWithText("Hide and seek with Donald Duck").assertIsNotDisplayed()
     }
 
-//    @Test
-//    fun testOldTodos3() {
-//        rule.setContent {  }
-//    }
-
-    private fun createTestTodoStore(application: TodoApplication): DataStore<Todos> {
-        val flow = MutableStateFlow(Todos.default())
+    @Test
+    fun testFab() = runTest {
+        lateinit var activity: ComponentActivity
+        val flow = MutableStateFlow(Todos(isMigrated = true, todos = listOf()))
         val testDataStore: TodoStore = mockk()
         coEvery { testDataStore.data }.returns(flow)
         coEvery { testDataStore.updateData(any()) }.answers { callContext ->
             val firstArg = callContext.invocation.args.first()
-            val field = firstArg!!::class.java.declaredFields.find { it.name == "\$legacyTodos" }
-            val todos: Todos = field!!.get(firstArg) as Todos
+            val field = firstArg!!::class.java.declaredFields.find { it.name == "\$thisTodo"}
+            val todos = Todos( todos = listOf(field!!.get(firstArg) as TodoItem))
             flow.value = todos
             todos
         }
-        val field = TodoApplication::class.java.getDeclaredField("todoDataStore")
-        field.isAccessible = true
-        field.set(application, testDataStore)
-        return testDataStore
+        composeTestRule.setContent {
+            activity = LocalActivity.current as ComponentActivity
+            val application = activity.applicationContext
+            val field = TodoApplication::class.java.getDeclaredField("todoDataStore")
+            field.isAccessible = true
+            field.set(application, testDataStore)
+            TodoScreenRoot()
+        }
+        composeTestRule.onNodeWithTag("FAB").performClick()
+        val roots = composeTestRule.onAllNodes(isRoot())
+        val parent = roots[1].onChildAt(0).onChildAt(0).onChildAt(1)
+        parent.onChildAt(1).requestFocus().performTextInput("Donald Duck")
+        parent.onChildAt(2).requestFocus().performTextInput("Watch Donald Duck")
+        parent.onChildAt(5).performClick()
+        parent.onChildAt(3).requestFocus()
+        roots[2].onChildAt(0).onChildAt(0).onChildAt(0)
+            .onChildAt(0).onChildAt(3).onChildAt(10)
+            .onChildAt(27).performClick()
+        composeTestRule.onNodeWithTag("DatePicker").onChildAt(0)
+            .onChildAt(0).onChildAt(3).onChildAt(10)
+            .onChildAt(27).performClick()
+        composeTestRule.onNodeWithText("Done").performClick()
+        composeTestRule.onNodeWithText(dateStr).assertIsDisplayed()
+        parent.onChildAt(5).performClick()
+        composeTestRule.onNodeWithTag("DatePicker").assertIsNotDisplayed()
+        composeTestRule.onNodeWithTag("Modal").performTouchInput { swipeDown() }
+        composeTestRule.onNodeWithTag("Modal").assertIsNotDisplayed()
+        composeTestRule.onNodeWithText("Donald Duck").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Watch Donald Duck").assertIsDisplayed()
     }
+
 
 //    @Test
 //    fun testTodos() {

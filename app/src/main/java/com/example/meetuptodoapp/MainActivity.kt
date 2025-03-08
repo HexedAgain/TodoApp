@@ -41,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -87,11 +88,6 @@ class MainActivity: ComponentActivity() {
         setContent {
             TodoScreenRoot()
         }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        println("test")
     }
 }
 
@@ -283,7 +279,7 @@ private fun TodoFAB(onClick: () -> Unit) {
     FloatingActionButton(
         onClick = onClick,
         shape = CircleShape,
-        modifier = Modifier.size(72.dp)
+        modifier = Modifier.testTag("FAB").size(72.dp)
     ) {
         Icon(
             painter = painterResource(R.drawable.baseline_add_24),
@@ -297,11 +293,10 @@ private fun TodoFAB(onClick: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ModalUpdateTodo(bottomSheetState: SheetState, todoIdx: Int?, onClose: () -> Unit) {
-//    val context = LocalContext.current
-//    val todoDataStore = (context.applicationContext as TodoApplication).todoDataStore
     LaunchedEffect(null) { bottomSheetState.expand() }
     ModalBottomSheet(
         sheetState = bottomSheetState,
+        modifier = Modifier.testTag("Modal"),
         onDismissRequest = {
             onClose()
         }

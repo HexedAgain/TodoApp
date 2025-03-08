@@ -375,11 +375,11 @@ fun Calendar(initialTimestamp: Long, onClose: (Long?) -> Unit) {
                     Text("Done")
                 }
             },
+            modifier = Modifier.testTag("DatePicker"),
             onDismissRequest = { onDismiss() }
         ) {
             DatePicker(
                 state = datePickerState,
-                modifier = Modifier
             )
         }
     }
