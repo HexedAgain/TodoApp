@@ -1,47 +1,20 @@
 package com.example.meetuptodoapp
 
-import android.content.Context
 import android.content.Context.MODE_PRIVATE
-import android.util.Log
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertTextContains
-import androidx.compose.ui.test.isFocusable
+import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.junit4.createEmptyComposeRule
-import androidx.compose.ui.test.onChild
-import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.onRoot
-import androidx.compose.ui.test.onSiblings
 import androidx.datastore.core.DataStore
-import androidx.datastore.core.DataStoreFactory
-import androidx.datastore.core.Serializer
-import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
+import com.example.meetuptodoapp.domain.model.TodoItem
 import com.example.meetuptodoapp.domain.model.TodoStore
 import com.example.meetuptodoapp.domain.model.Todos
 import io.mockk.coEvery
-import io.mockk.every
 import io.mockk.mockk
 import io.mockk.spyk
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.runTest
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.decodeFromStream
-import kotlinx.serialization.json.encodeToStream
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -50,125 +23,19 @@ import org.robolectric.annotation.Config
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
+import java.time.Instant
+import java.util.UUID
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [28])
 class AllTodosTest {
-//    @get:Rule
-//    val rule = createAndroidComposeRule<MainActivity>()
-//    @get:Rule
-//    val emptyComposeTestRule = createEmptyComposeRule()
     @get:Rule
     val composeTestRule = createComposeRule()
 
-//    @get:Rule
-//    val activityScenarioRule = ActivityScenarioRule(MainActivity::class.java)
-//    @get:Rule
-//    val rule2 = createEmptyComposeRule()
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val dispatcher = UnconfinedTestDispatcher()
-    val scope = TestScope(dispatcher)
-
-    private lateinit var context: Context
-    private lateinit var datastore: DataStore<Todos>
-
-    companion object {
-        lateinit var oStream: OutputStream
-    }
-
-    object TestSerializer: Serializer<Todos> {
-        override val defaultValue: Todos
-            get() = Todos(todos = listOf())
-
-        @OptIn(ExperimentalSerializationApi::class)
-        override suspend fun readFrom(input: InputStream): Todos {
-            return Json.decodeFromStream(input)
-        }
-
-        @OptIn(ExperimentalSerializationApi::class)
-        override suspend fun writeTo(t: Todos, output: OutputStream) {
-            Log.i("COMMIT", "in writeTo")
-//            oStream = FileOutputStream(file)
-            oStream = output
-            Json.encodeToStream(t, output)
-        }
-    }
-
-    class TestStore(context: Context): DataStore<Todos> {
-        val produceFile = File(context.filesDir, "datastore/TODOSTEST")
-        val impl = DataStoreFactory.create(
-            serializer = TestSerializer,
-            produceFile = {
-                produceFile
-            }
-        )
-        override val data: Flow<Todos>
-            get() = impl.data
-
-        override suspend fun updateData(transform: suspend (t: Todos) -> Todos): Todos {
-            return impl.updateData { transform(it) }
-        }
-    }
-
-    @Before
-    fun setup() = runTest {
-//        mockkStatic(UUID::class)
-//        val mockUUID = mockk<UUID>()
-//        every { mockUUID.toString() } returns "935b2608-e45b-4ede-ba9f-c22d294d0307"
-//        every { mockUUID.toString() } returns "11742402294532"
-//        every { UUID.randomUUID() } returns mockUUID
-//        val application: TodoApplication = RuntimeEnvironment.getApplication() as TodoApplication
-//        datastore = application.todoDataStore
-//        val field = TodoApplication::class.java.getDeclaredField("todoDataStore")
-//        field.isAccessible = true
-//        field.set(application, TestStore(application))
-//        println("test")
-//        datastore.updateData { Todos(todos = listOf(TodoItem("some-title"))) }
-//        val mutStateFlow = MutableStateFlow(Todos(listOf()))
-//        val stateFlow: MutableStateFlow<Todos> = mutStateFlow
-//        val activity = rule.activity
-//        val field = MainActivity::class.java.getDeclaredField("todoFlow")
-//        field.isAccessible = true
-//        field.set(activity, stateFlow)
-    }
-
-    private fun waitForUIReady() {
-        runBlocking { CoroutineScope(Dispatchers.Main).launch { delay(1000) } }
-    }
-
     @Test
-    fun testOnScreenLoadShowTodos() {
-
-    }
-    @Test
-    fun testShowUpdatedTodo() {
-        // this one is gonna show that for some initial todos, when they get updated then the new todos
-        // respect the update
-    }
-    @Test
-    fun testAddNewTodo() {
-        // this one is gonna show that for some initial todos, if the fab is selected and a todo
-        // selected then the screen shows the new todo
-    }
-
-//    @Test
-//    fun testOldTodos() {
-//        val context = ApplicationProvider.getApplicationContext<Context>()
-//        val prefs = context.getSharedPreferences("todos", MODE_PRIVATE)
-//        prefs.edit()
-//            .putString("TODOS", "{\"todos\":[{\"id\":\"ID\",\"title\":\"Donald Duck\",\"description\":\"Mickey Mouse\",\"timestamp\":1740777140000,\"completionTime\":1740787140000}]}")
-//            .commit()
-//        ActivityScenario.launch(MainActivity::class.java)
-//        emptyComposeTestRule.onNodeWithText("Donald Duck").assertIsDisplayed()
-//    }
-
-    @Test
-    fun testOldTodos2() {
+    fun testOldTodos() {
         val application = spyk(ApplicationProvider.getApplicationContext<TodoApplication>())
         val prefs = application.getSharedPreferences("todos", MODE_PRIVATE)
-        prefs.edit()
-            .putString("TODOS", "{\"todos\":[{\"id\":\"ID\",\"title\":\"Donald Duck\",\"description\":\"Mickey Mouse\",\"timestamp\":1740777140000,\"completionTime\":1740787140000}]}")
-            .commit()
         val flow = MutableStateFlow(Todos.default())
         val testDataStore: TodoStore = mockk()
         coEvery { testDataStore.data }.returns(flow)
@@ -182,12 +49,60 @@ class AllTodosTest {
         val field = TodoApplication::class.java.getDeclaredField("todoDataStore")
         field.isAccessible = true
         field.set(application, testDataStore)
+        prefs.edit()
+            .putString("TODOS", "{\"todos\":[{\"id\":\"${UUID.randomUUID()}\",\"title\":\"Donald Duck\",\"description\":\"Watch Donald Duck\",\"timestamp\":${Instant.now().toEpochMilli()},\"completionTime\":${Instant.now().toEpochMilli() + 3600000}}]}")
+            .commit()
         composeTestRule.setContent {
             TodoScreenRoot()
         }
-        val titleNode = composeTestRule.onNodeWithText("Donald Duck", useUnmergedTree = true)
-        titleNode.assertIsDisplayed()
-        titleNode.onSiblings().onFirst().assertTextContains("Mickey Mouse")
+        composeTestRule.onNodeWithText("Donald Duck").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Watch Donald Duck").assertIsDisplayed()
+    }
+
+    @Test
+    fun testNewTodos() {
+        val flow = MutableStateFlow(Todos.default())
+        val testDataStore: TodoStore = mockk()
+        coEvery { testDataStore.data }.returns(flow)
+        coEvery { testDataStore.updateData(any()) }.answers { callContext ->
+            val firstArg = callContext.invocation.args.first()
+            val field = firstArg!!::class.java.declaredFields.find { it.name == "\$legacyTodos" }
+            val todos: Todos = field!!.get(firstArg) as Todos
+            flow.value = todos
+            todos
+        }
+        val todos = Todos(
+            isMigrated = true,
+            todos = listOf(
+                TodoItem(
+                    id = UUID.randomUUID().toString(),
+                    title = "Donald Duck",
+                    description = "Watch Donald Duck",
+                    timestamp = Instant.now().toEpochMilli(),
+                    completionTime = Instant.now().toEpochMilli() + 3600000
+                ),
+                TodoItem(
+                    id = UUID.randomUUID().toString(),
+                    title = "Mickey Mouse",
+                    description = "Hide and seek with Donald Duck",
+                    timestamp = Instant.now().toEpochMilli() + 3600000,
+                    completionTime = Instant.now().toEpochMilli() + 3600000,
+                    completedTime = Instant.now().toEpochMilli()
+                )
+            )
+        )
+        flow.value = todos
+        composeTestRule.setContent {
+            val application = LocalContext.current.applicationContext
+            val field = TodoApplication::class.java.getDeclaredField("todoDataStore")
+            field.isAccessible = true
+            field.set(application, testDataStore)
+            TodoScreenRoot()
+        }
+        composeTestRule.onNodeWithText("Donald Duck").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Watch Donald Duck").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Mickey Mouse").assertIsNotDisplayed()
+        composeTestRule.onNodeWithText("Hide and seek with Donald Duck").assertIsNotDisplayed()
     }
 
 //    @Test

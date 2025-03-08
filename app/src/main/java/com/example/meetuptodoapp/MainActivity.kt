@@ -195,6 +195,7 @@ private fun TodoScreen(onEdit: (Int) -> Unit, coroutineScope: CoroutineScope) {
     var todoList: List<UITodo> by remember { mutableStateOf(listOf()) }
     coroutineScope.launch {
         todoDataStore.data.distinctUntilChanged().map { it.toUI() }.collect { latestTodos ->
+            println(todoDataStore)
             todoList = latestTodos
         }
     }
