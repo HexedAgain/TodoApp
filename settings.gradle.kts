@@ -21,4 +21,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "MeetupTODOApp"
 include(":app")
- 
+//include(":todos")
+include(":todos")
