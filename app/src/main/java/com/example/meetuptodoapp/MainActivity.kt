@@ -224,7 +224,7 @@ private fun Header(currChecked: Boolean, onChecked: (Boolean) -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("Show done todos?")
-                Checkbox(checked = currChecked, onCheckedChange = onChecked)
+                Checkbox(checked = currChecked, onCheckedChange = onChecked, modifier = Modifier.testTag("checkBox"))
             }
         }
     }

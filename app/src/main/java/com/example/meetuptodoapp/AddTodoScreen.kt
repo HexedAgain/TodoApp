@@ -173,18 +173,11 @@ fun currTime(timestamp: Long): ZonedDateTime {
 
 @Composable
 fun CTAButton(title: String, description: String, timestamp: Long, isAdd: Boolean, onDone: () -> Unit) {
-    println("CTA button rendered")
-//    val interactionScope = remember {
-//        getInteractionSource {
-//            onDone()
-//        }
-//    }
     Box(
         modifier = Modifier.padding(vertical = 16.dp).fillMaxWidth(),
         contentAlignment = Alignment.Center
     ) {
         Button(
-//            interactionSource = interactionScope,
             enabled = title.isNotEmpty() && description.isNotEmpty() && timestamp > -1,
             onClick = {
                 println("CTA button clicked")
@@ -203,7 +196,6 @@ fun ViewTodo(
     onDelete: (TodoItem) -> Unit,
     todoFlow: Flow<Todos>
 ) {
-//    val todoFlow = (LocalContext.current.applicationContext as TodoApplication).todoDataStore.data
     val todo = runBlocking { todoFlow.first().todos[todoIdx] }
     Column(modifier = Modifier.fillMaxWidth().fillMaxHeight()) {
         TextBox("Title", todo.title)
@@ -365,12 +357,8 @@ fun Calendar(initialTimestamp: Long, onClose: (Long?) -> Unit) {
     ) {
         DatePickerDialog(
             confirmButton = {
-                // Inject this from test
-//                Box(modifier = Modifier.testTag("datePickerConfirm").clickable { onDismiss() })
                 Button(onClick = {
                     onDismiss()
-//                    val hoursMinsOffset = (currTime.hour * 3600 + currTime.minute * 60) * 1000
-//                    onClose(datePickerState.selectedDateMillis?.plus(hoursMinsOffset.toLong()))
                 }) {
                     Text("Done")
                 }
