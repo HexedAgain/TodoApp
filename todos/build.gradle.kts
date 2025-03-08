@@ -8,8 +8,14 @@ plugins {
 
 android {
     namespace = "com.example.meetuptodoapp.todos"
-    compileSdk = 34
+    compileSdk = 35
 
+    testOptions {
+        unitTests {
+            isReturnDefaultValues = true
+            isIncludeAndroidResources = true
+        }
+    }
     defaultConfig {
         minSdk = 28
 
