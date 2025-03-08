@@ -11,7 +11,7 @@ class TodoSharedPrefs(val sharedPreferences: SharedPreferences) {
         sharedPreferences.edit().putString(TODOS, json).apply()
     }
     suspend fun readTodos(): Todos {
-        delay(10000L) // just to add a noticeable delay :P
+//        delay(10000L) // just to add a noticeable delay :P
         val rawJson = sharedPreferences.getString(TODOS, null) ?: "{\"todos\":[]}"
         return Json.decodeFromString<Todos>(rawJson)
     }
