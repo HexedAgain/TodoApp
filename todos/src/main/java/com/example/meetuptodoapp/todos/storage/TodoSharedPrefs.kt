@@ -1,7 +1,7 @@
 package com.example.meetuptodoapp.todos.storage
 
 import android.content.SharedPreferences
-import com.example.meetuptodoapp.todos.domain.model.Todos
+import com.example.meetuptodoapp.todos.domain.Todos
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
 

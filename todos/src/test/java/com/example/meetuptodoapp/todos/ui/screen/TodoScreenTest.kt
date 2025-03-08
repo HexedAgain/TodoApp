@@ -9,7 +9,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onChildAt
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
-import com.example.meetuptodoapp.todos.domain.model.TodoItem
+import com.example.meetuptodoapp.todos.domain.TodoItem
 import com.example.meetuptodoapp.todos.ui.tags.TodoTags
 import com.example.meetuptodoapp.todos.ui.viewmodel.TodoViewModel
 import com.example.meetuptodoapp.todos.ui.viewmodel.TodoViewModel.UIMode

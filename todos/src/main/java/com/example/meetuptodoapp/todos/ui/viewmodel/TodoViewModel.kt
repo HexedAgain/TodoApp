@@ -2,7 +2,7 @@ package com.example.meetuptodoapp.todos.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.meetuptodoapp.todos.domain.model.TodoItem
+import com.example.meetuptodoapp.todos.domain.TodoItem
 import com.example.meetuptodoapp.todos.storage.TodoSharedPrefs
 import com.example.meetuptodoapp.todos.storage.TodoStorage
 import kotlinx.coroutines.CoroutineDispatcher

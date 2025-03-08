@@ -37,13 +37,13 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.meetuptodoapp.composables.R
-import com.example.meetuptodoapp.todos.domain.model.TodoItem
+import com.example.meetuptodoapp.todos.domain.TodoItem
 import com.example.meetuptodoapp.todos.ui.tags.TodoTags
 import com.example.meetuptodoapp.todos.ui.theme.MeetupTODOAppTheme
 import com.example.meetuptodoapp.todos.ui.viewmodel.TodoForm
 import com.example.meetuptodoapp.todos.ui.viewmodel.TodoViewModel
 import com.example.meetuptodoapp.todos.ui.viewmodel.TodoViewModel.UIMode
+import com.example.meetuptodoapp.todos.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

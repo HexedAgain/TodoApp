@@ -46,14 +46,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.meetuptodoapp.composables.R
-import com.example.meetuptodoapp.todos.domain.model.TodoItem
+import com.example.meetuptodoapp.todos.domain.TodoItem
 import com.example.meetuptodoapp.todos.ui.tags.TodoTags
 import com.example.meetuptodoapp.todos.ui.viewmodel.TodoForm
 import com.example.meetuptodoapp.todos.ui.widgets.DateSelector
 import com.example.meetuptodoapp.todos.ui.widgets.DateSelectorImpl
 import com.example.meetuptodoapp.todos.utils.formatDate
 import com.example.meetuptodoapp.todos.utils.formatTime
+import com.example.meetuptodoapp.todos.R
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import java.time.Instant

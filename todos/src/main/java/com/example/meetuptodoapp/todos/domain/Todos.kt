@@ -1,4 +1,6 @@
-package com.example.meetuptodoapp.todos.domain.model
+package com.example.meetuptodoapp.todos.domain
+
+import kotlinx.serialization.Serializable
 
 @Serializable
 data class Todos(

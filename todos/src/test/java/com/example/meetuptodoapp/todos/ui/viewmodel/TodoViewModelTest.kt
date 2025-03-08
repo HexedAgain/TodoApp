@@ -1,11 +1,11 @@
 package com.example.meetuptodoapp.todos.ui.viewmodel
 
-import com.example.meetuptodoapp.todos.domain.model.TodoItem
+import com.example.meetuptodoapp.todos.domain.TodoItem
 import com.example.meetuptodoapp.todos.ui.viewmodel.TodoViewModel.UIMode.Create
 import com.example.meetuptodoapp.todos.ui.viewmodel.TodoViewModel.UIMode.ViewAll
 import com.example.meetuptodoapp.todos.ui.viewmodel.TodoViewModel.UIMode.Update
 import com.example.meetuptodoapp.todos.ui.viewmodel.TodoViewModel.UIMode.ViewSingle
-import com.example.meetuptodoapp.todos.domain.model.Todos
+import com.example.meetuptodoapp.todos.domain.Todos
 import com.example.meetuptodoapp.todos.storage.TodoSharedPrefs
 import com.example.meetuptodoapp.todos.storage.TodoStorage
 import io.mockk.clearMocks

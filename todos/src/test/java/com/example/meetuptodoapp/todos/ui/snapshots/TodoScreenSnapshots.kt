@@ -5,8 +5,8 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.LaunchedEffect
 import app.cash.paparazzi.DeviceConfig
 import app.cash.paparazzi.Paparazzi
-import com.example.meetuptodoapp.todos.domain.model.TodoItem
-import com.example.meetuptodoapp.todos.domain.model.Todos
+import com.example.meetuptodoapp.todos.domain.TodoItem
+import com.example.meetuptodoapp.todos.domain.Todos
 import com.example.meetuptodoapp.todos.storage.TodoSharedPrefs
 import com.example.meetuptodoapp.todos.storage.TodoStorage
 import com.example.meetuptodoapp.todos.ui.screen.TodoScreen

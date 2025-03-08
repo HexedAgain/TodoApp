@@ -4,7 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.DataStoreFactory
-import com.example.meetuptodoapp.todos.domain.model.Todos
+import com.example.meetuptodoapp.todos.domain.Todos
 import kotlinx.coroutines.flow.Flow
 import java.io.File
 
@@ -13,16 +13,16 @@ import java.io.File
 //    serializer = TodosSerializer
 //)
 
-class TodoStore(val context: Context): DataStore<com.example.meetuptodoapp.todos.domain.model.Todos> {
+class TodoStore(val context: Context): DataStore<Todos> {
     val impl = DataStoreFactory.create(
 
         serializer = TodosSerializer,
         produceFile = { File(context.filesDir, "datastore/TODOS") }
     )
-    override val data: Flow<com.example.meetuptodoapp.todos.domain.model.Todos>
+    override val data: Flow<Todos>
         get() = impl.data
 
-    override suspend fun updateData(transform: suspend (t: com.example.meetuptodoapp.todos.domain.model.Todos) -> com.example.meetuptodoapp.todos.domain.model.Todos): com.example.meetuptodoapp.todos.domain.model.Todos {
+    override suspend fun updateData(transform: suspend (t: Todos) -> Todos): Todos {
         Log.i("COMMIT", "inside updateData")
         return impl.updateData { transform(it) }
     }
