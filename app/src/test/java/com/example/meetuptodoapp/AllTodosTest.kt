@@ -6,9 +6,15 @@ import android.util.Log
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.isFocusable
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.onChild
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.onSiblings
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.DataStoreFactory
 import androidx.datastore.core.Serializer
@@ -50,8 +56,8 @@ import java.io.OutputStream
 class AllTodosTest {
 //    @get:Rule
 //    val rule = createAndroidComposeRule<MainActivity>()
-    @get:Rule
-    val emptyComposeTestRule = createEmptyComposeRule()
+//    @get:Rule
+//    val emptyComposeTestRule = createEmptyComposeRule()
     @get:Rule
     val composeTestRule = createComposeRule()
 
@@ -145,37 +151,49 @@ class AllTodosTest {
         // selected then the screen shows the new todo
     }
 
-    @Test
-    fun testOldTodos() {
-        val context = ApplicationProvider.getApplicationContext<Context>()
-        val prefs = context.getSharedPreferences("todos", MODE_PRIVATE)
-        prefs.edit()
-            .putString("TODOS", "{\"todos\":[{\"id\":\"ID\",\"title\":\"Donald Duck\",\"description\":\"Mickey Mouse\",\"timestamp\":1740777140000,\"completionTime\":1740787140000}]}")
-            .commit()
-        ActivityScenario.launch(MainActivity::class.java)
-        emptyComposeTestRule.onNodeWithText("Donald Duck").assertIsDisplayed()
-    }
-
-    @Test
-    fun testOldTodos2() {
-//        val application = spyk(ApplicationProvider.getApplicationContext<TodoApplication>())
-//        val prefs = application.getSharedPreferences("todos", MODE_PRIVATE)
+//    @Test
+//    fun testOldTodos() {
+//        val context = ApplicationProvider.getApplicationContext<Context>()
+//        val prefs = context.getSharedPreferences("todos", MODE_PRIVATE)
 //        prefs.edit()
 //            .putString("TODOS", "{\"todos\":[{\"id\":\"ID\",\"title\":\"Donald Duck\",\"description\":\"Mickey Mouse\",\"timestamp\":1740777140000,\"completionTime\":1740787140000}]}")
 //            .commit()
-//        val mockContext = mockk<MainActivity>()
-//        val testDataStore = createTestTodoStore(application)
-////        every { mockContext.application }.returns(application)
-//        every { mockContext.applicationContext }.returns(application)
-////        every { mockContext.filesDir }.returns(application.filesDir)
-//        every { mockContext.getSharedPreferences(any(), any()) }.returns(prefs)
-        composeTestRule.setContent {
-//            CompositionLocalProvider(LocalContext provides mockContext) {
-                TodoScreenRoot()
-//            }
+//        ActivityScenario.launch(MainActivity::class.java)
+//        emptyComposeTestRule.onNodeWithText("Donald Duck").assertIsDisplayed()
+//    }
+
+    @Test
+    fun testOldTodos2() {
+        val application = spyk(ApplicationProvider.getApplicationContext<TodoApplication>())
+        val prefs = application.getSharedPreferences("todos", MODE_PRIVATE)
+        prefs.edit()
+            .putString("TODOS", "{\"todos\":[{\"id\":\"ID\",\"title\":\"Donald Duck\",\"description\":\"Mickey Mouse\",\"timestamp\":1740777140000,\"completionTime\":1740787140000}]}")
+            .commit()
+        val flow = MutableStateFlow(Todos.default())
+        val testDataStore: TodoStore = mockk()
+        coEvery { testDataStore.data }.returns(flow)
+        coEvery { testDataStore.updateData(any()) }.answers { callContext ->
+            val firstArg = callContext.invocation.args.first()
+            val field = firstArg!!::class.java.declaredFields.find { it.name == "\$legacyTodos" }
+            val todos: Todos = field!!.get(firstArg) as Todos
+            flow.value = todos
+            todos
         }
-        println("test")
+        val field = TodoApplication::class.java.getDeclaredField("todoDataStore")
+        field.isAccessible = true
+        field.set(application, testDataStore)
+        composeTestRule.setContent {
+            TodoScreenRoot()
+        }
+        val titleNode = composeTestRule.onNodeWithText("Donald Duck", useUnmergedTree = true)
+        titleNode.assertIsDisplayed()
+        titleNode.onSiblings().onFirst().assertTextContains("Mickey Mouse")
     }
+
+//    @Test
+//    fun testOldTodos3() {
+//        rule.setContent {  }
+//    }
 
     private fun createTestTodoStore(application: TodoApplication): DataStore<Todos> {
         val flow = MutableStateFlow(Todos.default())
@@ -185,12 +203,9 @@ class AllTodosTest {
             val firstArg = callContext.invocation.args.first()
             val field = firstArg!!::class.java.declaredFields.find { it.name == "\$legacyTodos" }
             val todos: Todos = field!!.get(firstArg) as Todos
-            println(field)
-//            val todos = callContext.invocation.args.first() as Todos
             flow.value = todos
             todos
         }
-//        val testDataStore = TestStore(application)
         val field = TodoApplication::class.java.getDeclaredField("todoDataStore")
         field.isAccessible = true
         field.set(application, testDataStore)
