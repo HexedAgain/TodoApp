@@ -69,19 +69,6 @@ import java.time.Instant
 import java.util.UUID
 
 class MainActivity: ComponentActivity() {
-    private lateinit var todoDataStore: DataStore<Todos>
-//    private val todoDataStore: DataStore<Todos> = (application as TodoApplication).todoDataStore
-    // Things we would like to test (and be sure to make them outrageously large):
-    // - that when we launch this screen we show all the todos that are available on disk
-    // - that when we click the fab that we launch an activity to create a new todo
-    // - once we create the new todo it is shown on the prior activity and is also saved to disk
-
-    // To-be-done-by field, which if set will has a bell icon, if clicked then it raises
-    // a calendar to set a notification time. Doing this will send device token to some server,
-    // in order to issue a push notification at that date
-    //
-    // The test needs to be proving that the value came from disk (so will need to check what's actually
-    // in the todo file
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -141,6 +128,7 @@ private fun commitTodo(title: String, description: String, timestamp: Long, id: 
         } else {
             updateTodo(todoDataStore, title, description, timestamp, id)
         }
+        onFinish()
     }
 }
 

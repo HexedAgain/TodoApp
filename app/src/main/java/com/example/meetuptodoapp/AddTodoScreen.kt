@@ -3,7 +3,6 @@ package com.example.meetuptodoapp
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.FocusInteraction
 import androidx.compose.foundation.interaction.Interaction
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -42,7 +41,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -50,7 +48,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex
 import com.example.meetuptodoapp.domain.model.TodoItem
 import com.example.meetuptodoapp.domain.model.Todos
 import com.example.meetuptodoapp.utils.formatDate
@@ -113,7 +110,6 @@ fun EditTodo(
     initialTimestamp: Long = -1,
     onDone: @Composable (String, String, Long) -> Unit
 ) {
-    // Interesting bug here I had mixed up title / description
     val description = remember { mutableStateOf(initialDescription)}
     val title = remember { mutableStateOf(initialTitle)}
     val timestamp = remember { mutableLongStateOf(initialTimestamp) }
@@ -150,7 +146,6 @@ fun EditTodo(
                 timestamp.longValue = it
             }
             showDatePicker = false
-            // could set isDone true here if in test (total hack)
         }
     }
     if (showTimePicker) {
@@ -389,6 +384,5 @@ fun getInteractionSource(onClick: () -> Unit): MutableInteractionSource {
         override fun tryEmit(interaction: Interaction): Boolean {
             return interactions.tryEmit(interaction)
         }
-
     }
 }
